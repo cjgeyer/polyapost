@@ -119,7 +119,7 @@ hrep3 <- hrep2[hrep2[ , 1] == "1", , drop = FALSE]
 hrep4 <- hrep2[hrep2[ , 1] == "0", , drop = FALSE]
 @
 
-\subsection{Change of Variable}
+\subsection{Change of Variable} \label{sec:change}
 
 The equality constraints give us the affine hull of the polytope.
 <<affine-hull>>=
@@ -139,7 +139,7 @@ translated by the point.
 <<coordinates>>=
 foo <- vrep3[ , - c(1, 2), drop = FALSE]
 origin <- foo[is.point, ]
-basis <- foo[is.line, ]
+basis <- foo[is.line, , drop = FALSE]
 origin <- q2d(origin)
 basis <- q2d(basis)
 basis <- t(basis)
@@ -170,31 +170,46 @@ bvec <- qmq(bvec, qmatmult(amat, cbind(origin)))
 amat <- qmatmult(amat, basis)
 @
 
-\subsection{Functions in New Coordinates}
+\subsection{Log Unnormalized Density Function in New Coordinates}
 
-If the the log unnormalized density function provided by
-the user is $h$, then the log unnormalized density function for the
-Markov chain (which uses the new coordinates) is
-$h_2 : x \mapsto h(u + V x)$.
+The log unnormalized density function in old coordinates is
+$$
+   h_{\text{old}}(y) = \sum_{i = 1}^d (\alpha_i - 1) \log(y)
+$$
+We must have $y_i > 0$ for all components of $y$ for this to make sense.
+However, using inexact computer arithmetic we could get very small negative
+$y_i$ and hence have to deal with that.  The right thing to do is return
+\verb@-Inf@.  This will cause this proposal to be rejected in the Metropolis
+algorithm.
 
-If the the output function provided by
-the user is $o$, then the output function for the
-Markov chain (which uses the new coordinates) is
-$o_2 : x \mapsto o(u + V x)$.
+The log unnormalized density function in new coordinates is
+$$
+   h_{\text{new}}(x) = h_{\text{old}}(u + V x)
+$$
+where $u$ and $V$ are as defined in Section~\ref{sec:change} and are
+called \texttt{origin} and \texttt{basis}, respectively, in R and C code.
+This will work correctly with inexact computer arithmetic if $h_{\text{old}}$
+is defined so as to work correctly, as explained in the preceding paragraph.
 
-If no output function is supplied, this is equivalent to using
-the identify output function.  Thus we must use the output function
-$o_2 : x \mapsto u + V x$.  We do not have to actually implement
-this as a function.  By linearity of expectation if $\bar{x}$ is
-a batch mean in the new coordinates, then $u + V \bar{x}$ is the
-corresponding batch mean in the old coordinates.  Thus we can
-apply the transformation to the old coordinates at the end after
-batch means have been done.
+\subsection{Output Function in New Coordinates}
 
-\subsection{Initial State and Boundedness Check}
+The output function in old coordinates is
+$$
+   f_{\text{old}}(y) = O y
+$$
+where $O$ is the matrix \texttt{outmat} in R and C code.
+Hence in new coordinates it is
+$$
+   f_{\text{new}}(y) = O (u + V x) = O u + O V x
+$$
+where, as in the preceding section, $u$ and $V$ are as defined in
+Section~\ref{sec:change}.
 
-There are two remaining issues involving computational geometry.
-Both involve the V-representation of the constraint set in the new coordinates.
+\subsection{Initial State}
+
+There is one remaining issue involving computational geometry:
+finding a starting point for the Markov chain if one is not supplied,
+which can be any point in the constraint set (in new coordinates).
 <<hrep5>>=
 hrep5 <- cbind("0", bvec, qneg(amat))
 vrep5 <- scdd(hrep5, representation = "H")$output
@@ -203,7 +218,7 @@ all(vrep5[ , 1] == 0 & vrep5[ , 2] == 1)
 @
 These checks prove that the convex polytope is nonempty and bounded.
 <<initial>>=
-v <- vrep5[ , - c(1, 2)]
+v <- vrep5[ , - c(1, 2), drop = FALSE]
 x <- apply(v, 2, qsum)
 x <- qdq(x, rep(as.character(nrow(v)), length(x)))
 @

@@ -1,39 +1,7 @@
 
-/*
-*
-* mcmc and MCMC package for R
-* Copyright (c) 2014 Charles J. Geyer
-*
-* All rights reserved.
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, and/or sell copies of the
-* Software, and to permit persons to whom the Software is furnished to do so,
-* provided that the above copyright notice(s) and this permission notice appear
-* in all copies of the Software and that both the above copyright notice(s) and
-* this permission notice appear in supporting documentation.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-* IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS NOTICE
-* BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES,
-* OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
-* WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
-* ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-*
-* Except as contained in this notice, the name of a copyright holder shall
-* not be used in advertising or otherwise to promote the sale, use or other
-* dealings in this Software without prior written authorization of the
-* copyright holder.
-*/
-
 #include <R.h>
 #include <Rinternals.h>
 #include <Rmath.h>
-#include "myutil.h"
 
 void propose(SEXP state, SEXP proposal, SEXP amat, SEXP bvec,
     double *z, double *smax, double *smin, double *u);
@@ -44,44 +12,82 @@ static int out_setup(SEXP func, SEXP rho, SEXP state);
 
 static void outfun(SEXP state, SEXP buffer);
 
-SEXP har(SEXP func1, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
-    SEXP amat, SEXP bvec, SEXP func2, SEXP debug, SEXP rho1, SEXP rho2)
+SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
+    SEXP origin, SEXP basis, SEXP amat, SEXP bvec, SEXP outmat, SEXP debug)
 {
-    int int_nbatch, int_blen, int_nspac, int_debug;
-    SEXP state, proposal;
-    int dim_state, dim_out;
-    SEXP result, resultnames, path, save_initial, save_final;
-    double *batch_buffer;
-    SEXP out_buffer;
-
-    double current_log_dens;
-
-    if (! isFunction(func1))
-        error("argument \"func1\" must be function");
-    if (! isEnvironment(rho1))
-        error("argument \"rho1\" must be environment");
-
-    if (! isNumeric(initial))
-        error("argument \"initial\" must be numeric");
-    if (! isNumeric(nbatch))
-        error("argument \"nbatch\" must be numeric");
-    if (! isNumeric(blen))
-        error("argument \"blen\" must be numeric");
-    if (! isNumeric(nspac))
-        error("argument \"nspac\" must be numeric");
-    if (! isNumeric(amat))
-        error("argument \"amat\" must be numeric");
-    if (! isNumeric(bvec))
-        error("argument \"bvec\" must be numeric");
-
+    if (! isReal(alpha))
+        error("argument \"alpha\" must be type double");
+    if (! isReal(initial))
+        error("argument \"initial\" must be type double");
+    if (! isInteger(nbatch))
+        error("argument \"nbatch\" must be type integer");
+    if (! isInteger(blen))
+        error("argument \"blen\" must be type integer");
+    if (! isInteger(nspac))
+        error("argument \"nspac\" must be type integer");
+    if (! isReal(origin))
+        error("argument \"origin\" must be type double");
+    if (! isReal(basis))
+        error("argument \"basis\" must be type double");
+    if (! isReal(amat))
+        error("argument \"amat\" must be type double");
+    if (! isReal(bvec))
+        error("argument \"bvec\" must be type double");
+    if (! (isNull(outmat) | isReal(outmat)))
+        error("argument \"outmat\" must be type double or NULL");
     if (! isLogical(debug))
         error("argument \"debug\" must be logical");
 
-    int_nbatch = getScalarInteger(nbatch, "nbatch");
-    int_blen = getScalarInteger(blen, "blen");
-    int_nspac = getScalarInteger(nspac, "nspac");
+    if (! isMatrix(basis))
+        error("argument \"basis\" must be matrix");
+    if (! isMatrix(amat))
+        error("argument \"amat\" must be matrix");
+    if (! (isNull(outmat) | isMatrix(outmat)))
+        error("argument \"outmat\" must be matrix or NULL");
 
-    int_debug = getScalarLogical(debug, "debug");
+    int dim_oc = LENGTH(alpha);
+    int dim_nc = LENGTH(initial);
+    int ncons = nrows(amat);
+    if (LENGTH(nbatch) != 1)
+        error("argument \"nbatch\" must be scalar");
+    if (LENGTH(blen) != 1)
+        error("argument \"blen\" must be scalar");
+    if (LENGTH(nspac) != 1)
+        error("argument \"nspac\" must be scalar");
+    if (LENGTH(origin) != dim_oc)
+        error("length(origin) != length(alpha)");
+    if (nrows(basis) != dim_oc)
+        error("nrow(basis) != length(alpha)");
+    if (ncols(basis) != dim_nc)
+        error("ncol(basis) != length(initial)");
+    if (ncols(amat) != dim_nc)
+        error("ncol(amat) != length(initial)");
+    if (LENGTH(bvec) != ncons)
+        error("length(bvec) != nrow(amat)");
+    if (LENGTH(debug) != 1)
+        error("argument \"debug\" must be scalar");
+
+    int dim_out = dim_oc;
+    if (! isNull(outmat)) {
+        dim_out = nrows(outmat);
+        if (ncols(outmat) != dim_nc)
+            error("ncol(outmat) != length(initial)");
+    }
+
+    int int_nbatch = INTEGER(nbatch)[0];
+    int int_blen = INTEGER(blen)[0];
+    int int_nspac = INTEGER(nspac)[0];
+    int int_debug = LOGICAL(debug)[0];
+    double *dbl_star_alpha = REAL(alpha);
+    double *dbl_star_initial = REAL(initial);
+    double *dbl_star_origin = REAL(origin);
+    double *dbl_star_basis = REAL(basis);
+    double *dbl_star_amat = REAL(amat);
+    double *dbl_star_bvec = REAL(bvec);
+    int has_outmat = isMatrix(outmat);
+    double *dbl_star_outmat = 0;
+    if (has_outmat)
+        dbl_star_outmat = REAL(outmat);
 
     if (int_nbatch <= 0)
         error("argument \"nbatch\" must be positive");
@@ -89,6 +95,21 @@ SEXP har(SEXP func1, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
         error("argument \"blen\" must be positive");
     if (int_nspac <= 0)
         error("argument \"nspac\" must be positive");
+    for (int i = 0; i < dim_nc; i++) {
+        double foo = dbl_star_alpha[i];
+        if ((! R_FINITE(foo)) || foo <= 0.0)
+            error("argument \"alpha\" must have all components positive and finite");
+    }
+
+    // REVISED DOWN TO HERE
+
+    SEXP state, proposal;
+    int dim_state, dim_out;
+    SEXP result, resultnames, path, save_initial, save_final;
+    double *batch_buffer;
+    SEXP out_buffer;
+
+    double current_log_dens;
 
     PROTECT(state = coerceVector(duplicate(initial), REALSXP));
     if (! isAllFinite(state))
