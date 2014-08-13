@@ -1,0 +1,15 @@
+useDynLib(polyapost)
+
+importFrom(boot, simplex)
+import(rcdd)
+
+export(polyap)
+export(wtpolyap)
+export(feasible)
+export(constrppmn)
+export(constrppprob)
+
+export(hitrun)
+S3method(hitrun, hitrun)
+S3method(hitrun, default)
+
