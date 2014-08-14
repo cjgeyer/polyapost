@@ -46,6 +46,7 @@ static double logh(double *state)
             return R_NegInf;
         result += (my_alpha[i] - 1.0) * log(my_buffer[i]);
     }
+    return result;
 }
 
 static int nrow_my_out_mat = 0;
@@ -65,10 +66,11 @@ static void out_setup(double *origin, double *basis, double *outmat,
         // my_out_mat := out_mat * basis
         double one = 1.0;
         double zero = 0.0;
+        int ione = 1;
         F77_CALL(dgemm)("n", "n", &dim_out, &dim_nc, &dim_oc, &one, outmat,
             &dim_out, basis, &dim_oc, &zero, my_out_mat, &dim_out);
         // my_out_vec := out_mat * origin
-        F77_CALL(dgemv)("n", &out_dim, &out_nc, &one, outmat, &out_dim,
+        F77_CALL(dgemv)("n", &dim_out, &dim_nc, &one, outmat, &dim_out,
             origin, &ione, &zero, my_out_vec, &ione);
     } else {
         my_out_mat = (double *) R_alloc(dim_oc * dim_nc, sizeof(double));
@@ -83,8 +85,9 @@ static void out_setup(double *origin, double *basis, double *outmat,
 static void outfun(double *state, double *buffer)
 {
     double one = 1.0;
+    int ione = 1;
     // buffer := my_out_vec + my_out_mat * state
-    memcpy(buffer, my_out_vec, &nrow_my_out_mat);
+    memcpy(buffer, my_out_vec, nrow_my_out_mat);
     F77_CALL(dgemv)("n", &nrow_my_out_mat, &ncol_my_out_mat, &one,
         my_out_mat, &nrow_my_out_mat, state, &ione, &one, buffer, &ione);
 }
@@ -230,11 +233,11 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     if (int_debug) {
         SEXP spath, ppath, zpath, u1path, u2path, s1path, s2path, gpath;
         int nn = int_nbatch * int_blen * int_nspac;
-        PROTECT(spath = allocMatrix(REALSXP, dim_state, nn));
+        PROTECT(spath = allocMatrix(REALSXP, dim_nc, nn));
         SET_VECTOR_ELT(result, 3, spath);
-        PROTECT(ppath = allocMatrix(REALSXP, dim_state, nn));
+        PROTECT(ppath = allocMatrix(REALSXP, dim_nc, nn));
         SET_VECTOR_ELT(result, 4, ppath);
-        PROTECT(zpath = allocMatrix(REALSXP, dim_state, nn));
+        PROTECT(zpath = allocMatrix(REALSXP, dim_nc, nn));
         SET_VECTOR_ELT(result, 5, zpath);
         PROTECT(u1path = allocVector(REALSXP, nn));
         SET_VECTOR_ELT(result, 6, u1path);
@@ -287,7 +290,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
                 double u2 = R_NaReal;
                 double smax = R_NaReal;
                 double smin = R_NaReal;
-                double z[dim_state];
+                double z[dim_nc];
 
                 propose(state, proposal, dbl_star_amat, dbl_star_bvec,
                     dim_nc, ncons, z, &smax, &smin, &u1);
@@ -308,7 +311,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
 
                 if (int_debug) {
                     int l = ispac + int_nspac * (jbatch + int_blen * ibatch);
-                    int lbase = l * dim_state;
+                    int lbase = l * dim_nc;
                     SEXP spath = VECTOR_ELT(result, 3);
                     SEXP ppath = VECTOR_ELT(result, 4);
                     SEXP zpath = VECTOR_ELT(result, 5);
@@ -317,9 +320,9 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
                     SEXP s1path = VECTOR_ELT(result, 8);
                     SEXP s2path = VECTOR_ELT(result, 9);
                     SEXP gpath = VECTOR_ELT(result, 10);
-                    for (int lj = 0; lj < dim_state; lj++) {
-                        REAL(spath)[lbase + lj] = REAL(state)[lj];
-                        REAL(ppath)[lbase + lj] = REAL(proposal)[lj];
+                    for (int lj = 0; lj < dim_nc; lj++) {
+                        REAL(spath)[lbase + lj] = state[lj];
+                        REAL(ppath)[lbase + lj] = proposal[lj];
                         REAL(zpath)[lbase + lj] = z[lj];
                     }
                     REAL(u1path)[l] = u1;
@@ -330,8 +333,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
                 }
 
                 if (accept) {
-                    for (int jj = 0; jj < dim_state; jj++)
-                        REAL(state)[jj] = REAL(proposal)[jj];
+                    memcpy(proposal, state, dim_nc);
                     current_log_dens = proposal_log_dens;
                 }
             } /* end of inner loop (one iteration) */

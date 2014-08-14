@@ -11,7 +11,7 @@
 hitrun <- function(alpha, ...)
     UseMethod("hitrun")
 
-hitrun.hitrun <- function(alpha, nbatch, blen, nspac, outmat, debug)
+hitrun.hitrun <- function(alpha, nbatch, blen, nspac, outmat, debug, ...)
 {
     if (missing(nbatch)) nbatch <- alpha$nbatch
     if (missing(blen)) blen <- alpha$blen
@@ -33,7 +33,7 @@ hitrun.hitrun <- function(alpha, nbatch, blen, nspac, outmat, debug)
 }
 
 hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL, 
-     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE)
+     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE, ...)
 {
     if (! exists(".Random.seed")) runif(1)
     saveseed <- .Random.seed
@@ -43,7 +43,7 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     stopifnot(is.vector(alpha))
     stopifnot(length(alpha) >= 2)
     stopifnot(alpha > 0)
-    stopifnot(is.null(a1) == is.null(b1)
+    stopifnot(is.null(a1) == is.null(b1))
     if (! is.null(a1)) {
         stopifnot(is.numeric(a1))
         stopifnot(is.finite(a1))
@@ -54,7 +54,7 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
         stopifnot(nrow(a1) == length(b1))
         stopifnot(ncol(a1) == length(alpha))
     }
-    stopifnot(is.null(a2) == is.null(b2)
+    stopifnot(is.null(a2) == is.null(b2))
     if (! is.null(a2)) {
         stopifnot(is.numeric(a2))
         stopifnot(is.finite(a2))
@@ -154,13 +154,6 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     out <- hitrunHelper(alpha, rip, nbatch, blen, nspac,
         origin, basis, amat, bvec, outmat, debug)
 
-    if (is.null(func2)) {
-        foo <- out$batch
-        foo <- foo %*% t(basis)
-        foo <- sweep(foo, 2, origin, "+")
-        out$batch <- foo
-    }
-
     if (! missing(a1)) {
         out$a1 <- a1
         out$b1 <- b1
@@ -230,14 +223,10 @@ hitrunHelper <- function(alpha, initial, nbatch, blen, nspac,
     stopifnot(is.logical(debug))
     stopifnot(length(debug) == 1)
 
-    stopifnot(is.function(ludfun))
-    env1 <- environment(fun = ludfun)
-
     out.time <- system.time(
     out <- .Call("hitrun", alpha, initial, nbatch, blen, nspac,
         origin, basis, amat, bvec, outmat, debug, PACKAGE = "polyapost")
     )
-
 
     out$initial.seed <- saveseed
     out$final.seed <- .Random.seed

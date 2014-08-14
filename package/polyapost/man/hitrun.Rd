@@ -11,9 +11,9 @@
 hitrun(alpha, \dots)
 
 \S3method{hitrun}{default}(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
-     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE)
+     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE, \dots)
 
-\S3method{hitrun}{hitrun}(alpha, nbatch, blen, nspac, outmat, debug)
+\S3method{hitrun}{hitrun}(alpha, nbatch, blen, nspac, outmat, debug, \dots)
 }
 \arguments{
   \item{alpha}{parameter vector for Dirichlet distribution.  Alternatively,
@@ -29,10 +29,14 @@ hitrun(alpha, \dots)
   \item{b2}{a numeric vector. See details.}
   \item{outmat}{a numeric matrix, which controls the output.  If \code{p}
       is the constrained Dirichlet random vector being simulated, then
-      \code{outmat %*% p} is the functional of the state that is averaged.
+      \code{outmat \%*\% p} is the functional of the state that is averaged.
       May be \code{NULL}, in which case the identity matrix is used.}
   \item{debug}{if \code{TRUE}, then additional output useful for debugging
       is produced.}
+  \item{\dots}{ignored arguments.  Allows the two methods to have different
+      arguments.  You cannot change the Dirichlet parameter or the constraints
+      (hence cannot change the target distribution) when using the method
+      for class \code{"hitrun"}.}
 }
 \details{
 Runs a hit and run algorithm (for which see the references)
