@@ -1,5 +1,5 @@
 
-library(mcmc)
+library(polyapost)
 
 set.seed(42)
 
@@ -7,17 +7,15 @@ d <- 10
 r <- floor((d - 1) / 4)
 
 i <- 1:d
-a2 <- rbind(rep(1, d), i, as.numeric(i <= (d + 1) / 2) -
-    as.numeric(i >= (d + 1) / 2))
-b2 <- c(1, (d + 1) / 2, 0)
-a1 <- - diag(d)
-b1 <- rep(0, d)
-a1 <- rbind(a1, - as.numeric(i <= (d + 1) / 2 - r) -
+a2 <- rbind(i, as.numeric(i <= (d + 1) / 2) - as.numeric(i >= (d + 1) / 2))
+b2 <- c((d + 1) / 2, 0)
+a1 <- rbind(- as.numeric(i <= (d + 1) / 2 - r) -
     as.numeric(i >= (d + 1) / 2 + r))
-b1 <- c(b1, - 1 / 2)
+b1 <- - 1 / 2
+dimnames(a1) <- NULL
 dimnames(a2) <- NULL
 
-hout <- hitrun(function(x) return(0), nbatch = 100,
+hout <- hitrun(rep(1, d), nbatch = 100,
     a1 = a1, b1 = b1, a2 = a2, b2 = b2, debug = TRUE)
 names(hout)
 
@@ -128,14 +126,15 @@ bar <- sweep(bar, 2, b2)
 all(foo <= sqrt(.Machine$double.eps))
 all(abs(bar) <= sqrt(.Machine$double.eps))
 
-# everything checks when ludfun is flat, now for non-flat
+# now for non-uniform
+
+alpha <- rep(1.3, d)
 ludfun <- function(x) {
-    stopifnot(is.numeric(x))
-    stopifnot(is.finite(x))
-    stopifnot(length(x) == d)
-    1.3 * sum(log(x))
+    if (any(x <= 0)) return(-Inf)
+    return(sum((alpha - 1) * log(x)))
 }
-hout <- hitrun(ludfun, nbatch = 100,
+
+hout <- hitrun(alpha, nbatch = 100,
     a1 = a1, b1 = b1, a2 = a2, b2 = b2, debug = TRUE)
 
 foo <- hout$current %*% t(basis)
@@ -156,7 +155,7 @@ identical(my.accept.1, my.accept.2)
 # now check restart property
 
 .Random.seed <- hout$initial.seed
-hout1 <- hitrun(ludfun, nbatch = 50, a1 = a1, b1 = b1, a2 = a2, b2 = b2)
+hout1 <- hitrun(alpha, nbatch = 50, a1 = a1, b1 = b1, a2 = a2, b2 = b2)
 hout2 <- hitrun(hout1)
 identical(hout$batch, rbind(hout1$batch, hout2$batch))
 identical(hout$final, hout2$final)
