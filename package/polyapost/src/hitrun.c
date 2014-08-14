@@ -5,8 +5,8 @@
 #include <R_ext/BLAS.h>
 #include <string.h>
 
-void propose(SEXP state, SEXP proposal, SEXP amat, SEXP bvec,
-    double *z, double *smax, double *smin, double *u);
+void propose(double *x, double *proposal, double *a, double *b, int d, int n,
+    double *z, double *smax_out, double *smin_out, double *u_out);
 
 static int my_dim_oc = 0;
 static int my_dim_nc = 0;
@@ -210,8 +210,6 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     out_setup(dbl_star_origin, dbl_star_basis, dbl_star_outmat, dim_oc, dim_nc,
         dim_out, has_outmat);
 
-    // REVISED DOWN TO HERE
-
     SEXP result, resultnames, path, save_initial, save_final;
 
     if (! int_debug) {
@@ -261,6 +259,8 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     namesgets(result, resultnames);
     UNPROTECT(1);
 
+    // REVISED DOWN TO HERE
+
     GetRNGstate();
 
     if (current_log_dens == R_NegInf)
@@ -289,9 +289,10 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
                 double smin = R_NaReal;
                 double z[dim_state];
 
-                propose(state, proposal, amat, bvec, z, &smax, &smin, &u1);
+                propose(state, proposal, dbl_star_amat, dbl_star_bvec,
+                    dim_nc, ncons, z, &smax, &smin, &u1);
 
-                proposal_log_dens = logh(func1, proposal, rho1);
+                proposal_log_dens = logh(proposal);
 
                 int accept = FALSE;
                 if (proposal_log_dens != R_NegInf) {
@@ -337,7 +338,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
 
             outfun(state, out_buffer);
             for (j = 0; j < dim_out; j++)
-                batch_buffer[j] += REAL(out_buffer)[j];
+                batch_buffer[j] += out_buffer[j];
 
         } /* end of middle loop (one batch) */
 
@@ -348,28 +349,17 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
 
     PutRNGstate();
 
-    PROTECT(save_final = coerceVector(state, REALSXP));
+    PROTECT(save_final = allocVector(VECSXP, dim_nc));
+    memcpy(REAL(save_final), state, dim_nc);
     SET_VECTOR_ELT(result, 2, save_final);
 
     UNPROTECT(5);
     return result;
 }
 
-void propose(SEXP state, SEXP proposal, SEXP amat, SEXP bvec,
+void propose(double *x, double *proposal, double *a, double *b, int d, int n,
     double *z, double *smax_out, double *smin_out, double *u_out)
 {
-    int d = LENGTH(state);
-    int n = nrows(amat);
-    if (LENGTH(proposal) != d)
-        error("propose: length(state) != length(proposal)");
-    if (ncols(amat) != d)
-        error("propose: ncol(amat) != length(state)");
-    if (n != LENGTH(bvec))
-        error("propose: nrow(amat) != length(bvec)");
-    double *a = REAL(amat);
-    double *b = REAL(bvec);
-    double *x = REAL(state);
-
     for (int i = 0; i < d; i++) {
         z[i] = norm_rand();
     }
@@ -395,7 +385,7 @@ void propose(SEXP state, SEXP proposal, SEXP amat, SEXP bvec,
     double u = unif_rand();
 
     for (int i = 0; i < d; i++)
-        REAL(proposal)[i] = x[i] + (u * smin + (1.0 - u) * smax) * z[i];
+        proposal[i] = x[i] + (u * smin + (1.0 - u) * smax) * z[i];
 
     *smax_out = smax;
     *smin_out = smin;
