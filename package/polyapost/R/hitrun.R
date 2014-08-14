@@ -238,18 +238,17 @@ hitrunHelper <- function(alpha, initial, nbatch, blen, nspac,
         origin, basis, amat, bvec, outmat, debug, PACKAGE = "polyapost")
     )
 
-    ##### REVISED DOWN TO HERE #####
 
     out$initial.seed <- saveseed
     out$final.seed <- .Random.seed
     out$time <- out.time
-    out$ludfun <- ludfun
+    out$alpha <- alpha
     out$nbatch <- nbatch
     out$blen <- blen
     out$nspac <- nspac
     out$amat <- amat
     out$bvec <- bvec
-    out$outfun <- outfun
+    out$outmat <- outmat
     out$batch <- t(out$batch)
     out$debug <- debug
     if (debug) {
@@ -257,7 +256,7 @@ hitrunHelper <- function(alpha, initial, nbatch, blen, nspac,
         out$proposal <- t(out$proposal)
         out$z <- t(out$z)
     }
-    class(out) <- c("mcmc", "hitrun")
+    class(out) <- "hitrun"
     return(out)
 }
 
