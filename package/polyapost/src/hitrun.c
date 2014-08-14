@@ -2,15 +2,108 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <Rmath.h>
+#include <R_ext/BLAS.h>
+#include <string.h>
 
 void propose(SEXP state, SEXP proposal, SEXP amat, SEXP bvec,
     double *z, double *smax, double *smin, double *u);
 
-static double logh(SEXP func, SEXP state, SEXP rho);
+static int my_dim_oc = 0;
+static int my_dim_nc = 0;
+static double *my_alpha = 0;
+static double *my_origin = 0;
+static double *my_basis = 0;
+static double *my_buffer = 0;
 
-static int out_setup(SEXP func, SEXP rho, SEXP state);
+static void logh_setup(double *alpha, double *origin, double *basis,
+    int dim_oc, int dim_nc)
+{
+    my_dim_oc = dim_oc;
+    my_dim_nc = dim_nc;
+    my_alpha = (double *) R_alloc(dim_oc, sizeof(double));
+    my_origin = (double *) R_alloc(dim_oc, sizeof(double));
+    my_basis = (double *) R_alloc(dim_oc * dim_nc, sizeof(double));
+    my_buffer = (double *) R_alloc(dim_oc, sizeof(double));
 
-static void outfun(SEXP state, SEXP buffer);
+    memcpy(my_alpha, alpha, dim_oc);
+    memcpy(my_origin, origin, dim_oc);
+    memcpy(my_basis, basis, dim_oc * dim_nc);
+}
+
+static double logh(double *state)
+{
+    double one = 1.0;
+    int ione = 1;
+    // my_buffer := my_origin + my_basis * state
+    memcpy(my_buffer, my_origin, my_dim_oc);
+    F77_CALL(dgemv)("n", &my_dim_oc, &my_dim_nc, &one,
+        my_basis, &my_dim_oc, state, &ione, &one, my_buffer, &ione);
+
+    // return sum((alpha - 1) * my_buffer)
+    double result = 0.0;
+    for (int i = 0; i < my_dim_oc; i++) {
+        if (my_buffer[i] <= 0.0)
+            return R_NegInf;
+        result += (my_alpha[i] - 1.0) * log(my_buffer[i]);
+    }
+}
+
+static int nrow_my_out_mat = 0;
+static int ncol_my_out_mat = 0;
+static double *my_out_mat = 0;
+static double *my_out_vec = 0;
+
+static void out_setup(double *origin, double *basis, double *outmat,
+    int dim_oc, int dim_nc, int dim_out, int has_outmat)
+{
+    if (has_outmat) {
+        my_out_mat = (double *) R_alloc(dim_out * dim_nc, sizeof(double));
+        my_out_vec = (double *) R_alloc(dim_out, sizeof(double));
+        nrow_my_out_mat = dim_out;
+        ncol_my_out_mat = dim_nc;
+
+        // my_out_mat := out_mat * basis
+        double one = 1.0;
+        double zero = 0.0;
+        F77_CALL(dgemm)("n", "n", &dim_out, &dim_nc, &dim_oc, &one, outmat,
+            &dim_out, basis, &dim_oc, &zero, my_out_mat, &dim_out);
+        // my_out_vec := out_mat * origin
+        F77_CALL(dgemv)("n", &out_dim, &out_nc, &one, outmat, &out_dim,
+            origin, &ione, &zero, my_out_vec, &ione);
+    } else {
+        my_out_mat = (double *) R_alloc(dim_oc * dim_nc, sizeof(double));
+        my_out_vec = (double *) R_alloc(dim_oc, sizeof(double));
+        nrow_my_out_mat = dim_oc;
+        ncol_my_out_mat = dim_nc;
+        memcpy(my_out_mat, basis, dim_oc * dim_nc);
+        memcpy(my_out_vec, origin, dim_oc);
+    }
+}
+
+static void outfun(double *state, double *buffer)
+{
+    double one = 1.0;
+    // buffer := my_out_vec + my_out_mat * state
+    memcpy(buffer, my_out_vec, &nrow_my_out_mat);
+    F77_CALL(dgemv)("n", &nrow_my_out_mat, &ncol_my_out_mat, &one,
+        my_out_mat, &nrow_my_out_mat, state, &ione, &one, buffer, &ione);
+}
+
+void check_finite(double *x, int length, char *name)
+{
+    for (int i = 0; i < length; i++) {
+        if (! R_FINITE(x[i]))
+            error("argument \"%s\" must have all components finite", name);
+    }
+}
+
+void check_positive(double *x, int length, char *name)
+{
+    for (int i = 0; i < length; i++) {
+        if (x[i] <= 0.0)
+            error("argument \"%s\" must have all components positive", name);
+    }
+}
 
 SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     SEXP origin, SEXP basis, SEXP amat, SEXP bvec, SEXP outmat, SEXP debug)
@@ -95,195 +188,171 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
         error("argument \"blen\" must be positive");
     if (int_nspac <= 0)
         error("argument \"nspac\" must be positive");
-    for (int i = 0; i < dim_nc; i++) {
-        double foo = dbl_star_alpha[i];
-        if ((! R_FINITE(foo)) || foo <= 0.0)
-            error("argument \"alpha\" must have all components positive and finite");
-    }
+    check_finite(dbl_star_alpha, dim_oc, "alpha");
+    check_positive(dbl_star_alpha, dim_oc, "alpha");
+    check_finite(dbl_star_initial, dim_nc, "initial");
+    check_finite(dbl_star_origin, dim_oc, "origin");
+    check_finite(dbl_star_basis, dim_oc * dim_nc, "basis");
+    check_finite(dbl_star_amat, ncons * dim_nc, "amat");
+    check_finite(dbl_star_bvec, ncons * dim_nc, "bvec");
+    if (has_outmat)
+        check_finite(dbl_star_outmat, ncons * dim_nc, "outmat");
+
+    double *state = (double *) R_alloc(dim_nc, sizeof(double));
+    double *proposal = (double *) R_alloc(dim_nc, sizeof(double));
+    double *batch_buffer = (double *) R_alloc(dim_out, sizeof(double));
+    double *out_buffer = (double *) R_alloc(dim_out, sizeof(double));
+
+    memcpy(state, dbl_star_initial, dim_nc);
+    logh_setup(dbl_star_alpha, dbl_star_origin, dbl_star_basis, dim_oc, dim_nc);
+    double current_log_dens = logh(state);
+
+    out_setup(dbl_star_origin, dbl_star_basis, dbl_star_outmat, dim_oc, dim_nc,
+        dim_out, has_outmat);
 
     // REVISED DOWN TO HERE
 
-    SEXP state, proposal;
-    int dim_state, dim_out;
     SEXP result, resultnames, path, save_initial, save_final;
-    double *batch_buffer;
-    SEXP out_buffer;
 
-    double current_log_dens;
+    if (! int_debug) {
+        PROTECT(result = allocVector(VECSXP, 3));
+        PROTECT(resultnames = allocVector(STRSXP, 3));
+    } else {
+        PROTECT(result = allocVector(VECSXP, 11));
+        PROTECT(resultnames = allocVector(STRSXP, 11));
+    }
+    PROTECT(path = allocMatrix(REALSXP, dim_out, int_nbatch));
+    SET_VECTOR_ELT(result, 0, path);
+    PROTECT(save_initial = duplicate(initial));
+    SET_VECTOR_ELT(result, 1, save_initial);
+    UNPROTECT(2);
+    SET_STRING_ELT(resultnames, 0, mkChar("batch"));
+    SET_STRING_ELT(resultnames, 1, mkChar("initial"));
+    SET_STRING_ELT(resultnames, 2, mkChar("final"));
+    if (int_debug) {
+        SEXP spath, ppath, zpath, u1path, u2path, s1path, s2path, gpath;
+        int nn = int_nbatch * int_blen * int_nspac;
+        PROTECT(spath = allocMatrix(REALSXP, dim_state, nn));
+        SET_VECTOR_ELT(result, 3, spath);
+        PROTECT(ppath = allocMatrix(REALSXP, dim_state, nn));
+        SET_VECTOR_ELT(result, 4, ppath);
+        PROTECT(zpath = allocMatrix(REALSXP, dim_state, nn));
+        SET_VECTOR_ELT(result, 5, zpath);
+        PROTECT(u1path = allocVector(REALSXP, nn));
+        SET_VECTOR_ELT(result, 6, u1path);
+        PROTECT(u2path = allocVector(REALSXP, nn));
+        SET_VECTOR_ELT(result, 7, u2path);
+        PROTECT(s1path = allocVector(REALSXP, nn));
+        SET_VECTOR_ELT(result, 8, s1path);
+        PROTECT(s2path = allocVector(REALSXP, nn));
+        SET_VECTOR_ELT(result, 9, s2path);
+        PROTECT(gpath = allocVector(REALSXP, nn));
+        SET_VECTOR_ELT(result, 10, gpath);
+        UNPROTECT(8);
+        SET_STRING_ELT(resultnames, 3, mkChar("current"));
+        SET_STRING_ELT(resultnames, 4, mkChar("proposal"));
+        SET_STRING_ELT(resultnames, 5, mkChar("z"));
+        SET_STRING_ELT(resultnames, 6, mkChar("u1"));
+        SET_STRING_ELT(resultnames, 7, mkChar("u2"));
+        SET_STRING_ELT(resultnames, 8, mkChar("s1"));
+        SET_STRING_ELT(resultnames, 9, mkChar("s2"));
+        SET_STRING_ELT(resultnames, 10, mkChar("log.green"));
+    }
+    namesgets(result, resultnames);
+    UNPROTECT(1);
 
-    PROTECT(state = coerceVector(duplicate(initial), REALSXP));
-    if (! isAllFinite(state))
-        error("all elements of \"state\" must be finite");
-    dim_state = LENGTH(state);
+    GetRNGstate();
 
-    PROTECT(proposal = allocVector(REALSXP, dim_state));
+    if (current_log_dens == R_NegInf)
+        error("log unnormalized density -Inf at initial state");
 
-    dim_out = out_setup(func2, rho2, state);
-    batch_buffer = (double *) R_alloc(dim_out, sizeof(double));
-    PROTECT(out_buffer = allocVector(REALSXP, dim_out));
+    for (int ibatch = 0, k = 0; ibatch < int_nbatch; ibatch++) {
 
-     if (! int_debug) {
-         PROTECT(result = allocVector(VECSXP, 3));
-         PROTECT(resultnames = allocVector(STRSXP, 3));
-     } else {
-         PROTECT(result = allocVector(VECSXP, 11));
-         PROTECT(resultnames = allocVector(STRSXP, 11));
-     }
-     PROTECT(path = allocMatrix(REALSXP, dim_out, int_nbatch));
-     SET_VECTOR_ELT(result, 0, path);
-     PROTECT(save_initial = duplicate(state));
-     SET_VECTOR_ELT(result, 1, save_initial);
-     UNPROTECT(2);
-     SET_STRING_ELT(resultnames, 0, mkChar("batch"));
-     SET_STRING_ELT(resultnames, 1, mkChar("initial"));
-     SET_STRING_ELT(resultnames, 2, mkChar("final"));
-     if (int_debug) {
-         SEXP spath, ppath, zpath, u1path, u2path, s1path, s2path, gpath;
-         int nn = int_nbatch * int_blen * int_nspac;
-         PROTECT(spath = allocMatrix(REALSXP, dim_state, nn));
-         SET_VECTOR_ELT(result, 3, spath);
-         PROTECT(ppath = allocMatrix(REALSXP, dim_state, nn));
-         SET_VECTOR_ELT(result, 4, ppath);
-         PROTECT(zpath = allocMatrix(REALSXP, dim_state, nn));
-         SET_VECTOR_ELT(result, 5, zpath);
-         PROTECT(u1path = allocVector(REALSXP, nn));
-         SET_VECTOR_ELT(result, 6, u1path);
-         PROTECT(u2path = allocVector(REALSXP, nn));
-         SET_VECTOR_ELT(result, 7, u2path);
-         PROTECT(s1path = allocVector(REALSXP, nn));
-         SET_VECTOR_ELT(result, 8, s1path);
-         PROTECT(s2path = allocVector(REALSXP, nn));
-         SET_VECTOR_ELT(result, 9, s2path);
-         PROTECT(gpath = allocVector(REALSXP, nn));
-         SET_VECTOR_ELT(result, 10, gpath);
-         UNPROTECT(8);
-         SET_STRING_ELT(resultnames, 3, mkChar("current"));
-         SET_STRING_ELT(resultnames, 4, mkChar("proposal"));
-         SET_STRING_ELT(resultnames, 5, mkChar("z"));
-         SET_STRING_ELT(resultnames, 6, mkChar("u1"));
-         SET_STRING_ELT(resultnames, 7, mkChar("u2"));
-         SET_STRING_ELT(resultnames, 8, mkChar("s1"));
-         SET_STRING_ELT(resultnames, 9, mkChar("s2"));
-         SET_STRING_ELT(resultnames, 10, mkChar("log.green"));
-     }
-     namesgets(result, resultnames);
-     UNPROTECT(1);
+        int j;
 
-     GetRNGstate();
+        for (int i = 0; i < dim_out; i++)
+            batch_buffer[i] = 0.0;
 
-     current_log_dens = logh(func1, state, rho1);
-     if (current_log_dens == R_NegInf)
-         error("log unnormalized density -Inf at initial state");
+        for (int jbatch = 0; jbatch < int_blen; jbatch++) {
 
-     for (int ibatch = 0, k = 0; ibatch < int_nbatch; ibatch++) {
+            double proposal_log_dens;
 
-         int j;
+            for (int ispac = 0; ispac < int_nspac; ispac++) {
 
-         for (int i = 0; i < dim_out; i++)
-             batch_buffer[i] = 0.0;
+                /* Note: should never happen! */
+                if (current_log_dens == R_NegInf)
+                    error("log density -Inf at current state");
 
-         for (int jbatch = 0; jbatch < int_blen; jbatch++) {
+                double u1 = R_NaReal;
+                double u2 = R_NaReal;
+                double smax = R_NaReal;
+                double smin = R_NaReal;
+                double z[dim_state];
 
-             double proposal_log_dens;
+                propose(state, proposal, amat, bvec, z, &smax, &smin, &u1);
 
-             for (int ispac = 0; ispac < int_nspac; ispac++) {
+                proposal_log_dens = logh(func1, proposal, rho1);
 
-                 /* Note: should never happen! */
-                 if (current_log_dens == R_NegInf)
-                     error("log density -Inf at current state");
+                int accept = FALSE;
+                if (proposal_log_dens != R_NegInf) {
+                    if (proposal_log_dens >= current_log_dens) {
+                        accept = TRUE;
+                    } else {
+                        double green = exp(proposal_log_dens
+                            - current_log_dens);
+                        u2 = unif_rand();
+                        accept = u2 < green;
+                    }
+                }
 
-                 double u1 = R_NaReal;
-                 double u2 = R_NaReal;
-                 double smax = R_NaReal;
-                 double smin = R_NaReal;
-                 double z[dim_state];
+                if (int_debug) {
+                    int l = ispac + int_nspac * (jbatch + int_blen * ibatch);
+                    int lbase = l * dim_state;
+                    SEXP spath = VECTOR_ELT(result, 3);
+                    SEXP ppath = VECTOR_ELT(result, 4);
+                    SEXP zpath = VECTOR_ELT(result, 5);
+                    SEXP u1path = VECTOR_ELT(result, 6);
+                    SEXP u2path = VECTOR_ELT(result, 7);
+                    SEXP s1path = VECTOR_ELT(result, 8);
+                    SEXP s2path = VECTOR_ELT(result, 9);
+                    SEXP gpath = VECTOR_ELT(result, 10);
+                    for (int lj = 0; lj < dim_state; lj++) {
+                        REAL(spath)[lbase + lj] = REAL(state)[lj];
+                        REAL(ppath)[lbase + lj] = REAL(proposal)[lj];
+                        REAL(zpath)[lbase + lj] = z[lj];
+                    }
+                    REAL(u1path)[l] = u1;
+                    REAL(u2path)[l] = u2;
+                    REAL(s1path)[l] = smin;
+                    REAL(s2path)[l] = smax;
+                    REAL(gpath)[l] = proposal_log_dens - current_log_dens;
+                }
 
-                 propose(state, proposal, amat, bvec, z, &smax, &smin, &u1);
+                if (accept) {
+                    for (int jj = 0; jj < dim_state; jj++)
+                        REAL(state)[jj] = REAL(proposal)[jj];
+                    current_log_dens = proposal_log_dens;
+                }
+            } /* end of inner loop (one iteration) */
 
-                 proposal_log_dens = logh(func1, proposal, rho1);
+            outfun(state, out_buffer);
+            for (j = 0; j < dim_out; j++)
+                batch_buffer[j] += REAL(out_buffer)[j];
 
-                 int accept = FALSE;
-                 if (proposal_log_dens != R_NegInf) {
-                     if (proposal_log_dens >= current_log_dens) {
-                         accept = TRUE;
-                     } else {
-                         double green = exp(proposal_log_dens
-                             - current_log_dens);
-                         u2 = unif_rand();
-                         accept = u2 < green;
-                     }
-                 }
+        } /* end of middle loop (one batch) */
 
-                 if (int_debug) {
-                     int l = ispac + int_nspac * (jbatch + int_blen * ibatch);
-                     int lbase = l * dim_state;
-                     SEXP spath = VECTOR_ELT(result, 3);
-                     SEXP ppath = VECTOR_ELT(result, 4);
-                     SEXP zpath = VECTOR_ELT(result, 5);
-                     SEXP u1path = VECTOR_ELT(result, 6);
-                     SEXP u2path = VECTOR_ELT(result, 7);
-                     SEXP s1path = VECTOR_ELT(result, 8);
-                     SEXP s2path = VECTOR_ELT(result, 9);
-                     SEXP gpath = VECTOR_ELT(result, 10);
-                     for (int lj = 0; lj < dim_state; lj++) {
-                         REAL(spath)[lbase + lj] = REAL(state)[lj];
-                         REAL(ppath)[lbase + lj] = REAL(proposal)[lj];
-                         REAL(zpath)[lbase + lj] = z[lj];
-                     }
-                     REAL(u1path)[l] = u1;
-                     REAL(u2path)[l] = u2;
-                     REAL(s1path)[l] = smin;
-                     REAL(s2path)[l] = smax;
-                     REAL(gpath)[l] = proposal_log_dens - current_log_dens;
-                 }
+        for (j = 0; j < dim_out; j++, k++)
+            REAL(path)[k] = batch_buffer[j] / int_blen;
 
-                 if (accept) {
-                     for (int jj = 0; jj < dim_state; jj++)
-                         REAL(state)[jj] = REAL(proposal)[jj];
-                     current_log_dens = proposal_log_dens;
-                 }
-             } /* end of inner loop (one iteration) */
+    } /* end of outer loop */
 
-             outfun(state, out_buffer);
-             for (j = 0; j < dim_out; j++)
-                 batch_buffer[j] += REAL(out_buffer)[j];
+    PutRNGstate();
 
-         } /* end of middle loop (one batch) */
+    PROTECT(save_final = coerceVector(state, REALSXP));
+    SET_VECTOR_ELT(result, 2, save_final);
 
-         for (j = 0; j < dim_out; j++, k++)
-             REAL(path)[k] = batch_buffer[j] / int_blen;
-
-     } /* end of outer loop */
-
-     PutRNGstate();
-
-     PROTECT(save_final = coerceVector(state, REALSXP));
-     SET_VECTOR_ELT(result, 2, save_final);
-
-     UNPROTECT(5);
-     return result;
-}
-
-static double logh(SEXP func, SEXP state, SEXP rho)
-{
-     SEXP call, result, foo;
-     double bar;
-
-     PROTECT(call = lang2(func, state));
-     PROTECT(result = eval(call, rho));
-     if (! isNumeric(result))
-         error("logh: result of function call must be numeric");
-     if (LENGTH(result) != 1)
-         error("logh: result of function call must be scalar");
-     PROTECT(foo = coerceVector(result, REALSXP));
-     bar = REAL(foo)[0];
-     UNPROTECT(3);
-     if (bar == R_PosInf)
-         error("logh: func returned +Inf");
-     if (R_IsNaN(bar) || R_IsNA(bar))
-         error("logh: func returned NA or NaN");
-     /* Note: -Inf is allowed */
-     return bar;
+    UNPROTECT(5);
+    return result;
 }
 
 void propose(SEXP state, SEXP proposal, SEXP amat, SEXP bvec,
@@ -331,78 +400,5 @@ void propose(SEXP state, SEXP proposal, SEXP amat, SEXP bvec,
     *smax_out = smax;
     *smin_out = smin;
     *u_out = u;
-}
-
-static SEXP out_func;
-static SEXP out_env;
-static int out_option;
-static int out_dimension;
-static int out_state_dimension;
-#define OUT_FUNCTION   1
-#define OUT_INDEX      2
-#define OUT_IDENTITY   3
-
-static int out_setup(SEXP func, SEXP rho, SEXP state)
-{
-    out_state_dimension = LENGTH(state);
-
-    if (func == R_NilValue) {
-        out_option = OUT_IDENTITY;
-        out_dimension = out_state_dimension;
-        out_func = R_NilValue;
-        out_env = R_NilValue;
-    } else if (isFunction(func)) {
-        if (! isEnvironment(rho))
-            error("out_setup: argument \"rho\" must be environment");
-        out_option = OUT_FUNCTION;
-        out_func = func;
-        out_env = rho;
-        out_dimension = LENGTH(eval(lang2(func, state), rho));
-    } else {
-        error("out_setup: argument \"func\" must be function or NULL");
-    }
-    return out_dimension;
-}
-
-static void outfun(SEXP state, SEXP buffer)
-{
-    int j, k;
-
-    if (out_option == 0)
-        error("attempt to call outfun without setup");
-
-    if (LENGTH(state) != out_state_dimension)
-        error("outfun: state length different from initialization");
-    if (! isReal(buffer))
-        error("outfun: buffer must be real");
-    if (LENGTH(buffer) != out_dimension)
-        error("outfun: buffer length different from initialization");
-
-    switch (out_option) {
-        case OUT_IDENTITY:
-            for (j = 0; j < out_state_dimension; j++)
-                REAL(buffer)[j] = REAL(state)[j];
-            break;
-        case OUT_FUNCTION:
-            {
-                SEXP call, result, foo;
-
-                PROTECT(call = lang2(out_func, state));
-                PROTECT(result = eval(call, out_env));
-                if (! isNumeric(result))
-                    error("outfun: result of function call must be numeric");
-                PROTECT(foo = coerceVector(result, REALSXP));
-                if (! isAllFinite(foo))
-                    error("outfun returned vector with non-finite element");
-                if (LENGTH(foo) != out_dimension)
-                    error("outfun return vector length changed from initial");
-                for (k = 0; k < out_dimension; k++)
-                    REAL(buffer)[k] = REAL(foo)[k];
-                UNPROTECT(3);
-            }
-            break;
-        default:
-            error("bogus out option\n");
-    }
 }
 
