@@ -83,17 +83,13 @@ d <- 10
 x <- 1:d
 # equality constraints
 #     mean equal to (d + 1) / 2, that is, sum(x * p) = (d + 1) / 2
-#     probabilities sum to one, that is, sum(p) = 1
 # inequality constraints
 #     median less than or equal to (d + 1) / 2, that is,
 #         sum(p[x <= (d + 1) / 2]) <= 1 / 2
-#     probabilities nonnegative, that is, all(p >= 0)
-a2 <- rbind(rep(1, d), x)
-b2 <- c(1, (d + 1) / 2)
-a1 <- - diag(d)
-b1 <- rep(0, d)
-a1 <- rbind(a1, as.numeric(x <= (d + 1) / 2))
-b1 <- c(b1, 1 / 2)
+a2 <- rbind(x)
+b2 <- (d + 1) / 2
+a1 <- rbind(as.numeric(x <= (d + 1) / 2))
+b1 <- 1 / 2
 # simulate prior, which Dirichlet(alpha)
 # posterior would be another Dirichlet with n + alpha - 1,
 #    where n is count of IID data for each value

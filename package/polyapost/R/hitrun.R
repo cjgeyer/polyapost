@@ -223,9 +223,15 @@ hitrunHelper <- function(alpha, initial, nbatch, blen, nspac,
     stopifnot(is.logical(debug))
     stopifnot(length(debug) == 1)
 
+    storage.mode(basis) <- "double"
+    storage.mode(amat) <- "double"
+    if (is.matrix(outmat))
+        storage.mode(outmat) <- "double"
     out.time <- system.time(
-    out <- .Call("hitrun", alpha, initial, nbatch, blen, nspac,
-        origin, basis, amat, bvec, outmat, debug, PACKAGE = "polyapost")
+    out <- .Call("hitrun", as.double(alpha), as.double(initial),
+        as.integer(nbatch), as.integer(blen), as.integer(nspac),
+        as.double(origin), basis, amat, as.double(bvec), outmat,
+        as.logical(debug), PACKAGE = "polyapost")
     )
 
     out$initial.seed <- saveseed

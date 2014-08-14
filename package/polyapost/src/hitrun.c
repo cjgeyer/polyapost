@@ -25,9 +25,9 @@ static void logh_setup(double *alpha, double *origin, double *basis,
     my_basis = (double *) R_alloc(dim_oc * dim_nc, sizeof(double));
     my_buffer = (double *) R_alloc(dim_oc, sizeof(double));
 
-    memcpy(my_alpha, alpha, dim_oc);
-    memcpy(my_origin, origin, dim_oc);
-    memcpy(my_basis, basis, dim_oc * dim_nc);
+    memcpy(my_alpha, alpha, dim_oc * sizeof(double));
+    memcpy(my_origin, origin, dim_oc * sizeof(double));
+    memcpy(my_basis, basis, dim_oc * dim_nc * sizeof(double));
 }
 
 static double logh(double *state)
@@ -35,7 +35,7 @@ static double logh(double *state)
     double one = 1.0;
     int ione = 1;
     // my_buffer := my_origin + my_basis * state
-    memcpy(my_buffer, my_origin, my_dim_oc);
+    memcpy(my_buffer, my_origin, my_dim_oc * sizeof(double));
     F77_CALL(dgemv)("n", &my_dim_oc, &my_dim_nc, &one,
         my_basis, &my_dim_oc, state, &ione, &one, my_buffer, &ione);
 
@@ -77,8 +77,8 @@ static void out_setup(double *origin, double *basis, double *outmat,
         my_out_vec = (double *) R_alloc(dim_oc, sizeof(double));
         nrow_my_out_mat = dim_oc;
         ncol_my_out_mat = dim_nc;
-        memcpy(my_out_mat, basis, dim_oc * dim_nc);
-        memcpy(my_out_vec, origin, dim_oc);
+        memcpy(my_out_mat, basis, dim_oc * dim_nc * sizeof(double));
+        memcpy(my_out_vec, origin, dim_oc * sizeof(double));
     }
 }
 
@@ -87,7 +87,7 @@ static void outfun(double *state, double *buffer)
     double one = 1.0;
     int ione = 1;
     // buffer := my_out_vec + my_out_mat * state
-    memcpy(buffer, my_out_vec, nrow_my_out_mat);
+    memcpy(buffer, my_out_vec, nrow_my_out_mat * sizeof(double));
     F77_CALL(dgemv)("n", &nrow_my_out_mat, &ncol_my_out_mat, &one,
         my_out_mat, &nrow_my_out_mat, state, &ione, &one, buffer, &ione);
 }
@@ -134,12 +134,20 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     if (! isLogical(debug))
         error("argument \"debug\" must be logical");
 
+#ifdef BLATHER
+    Rprintf("finished checking types\n");
+#endif /* BLATHER */
+
     if (! isMatrix(basis))
         error("argument \"basis\" must be matrix");
     if (! isMatrix(amat))
         error("argument \"amat\" must be matrix");
     if (! (isNull(outmat) | isMatrix(outmat)))
         error("argument \"outmat\" must be matrix or NULL");
+
+#ifdef BLATHER
+    Rprintf("finished checking matrices are matrices\n");
+#endif /* BLATHER */
 
     int dim_oc = LENGTH(alpha);
     int dim_nc = LENGTH(initial);
@@ -169,6 +177,10 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
         if (ncols(outmat) != dim_nc)
             error("ncol(outmat) != length(initial)");
     }
+
+#ifdef BLATHER
+    Rprintf("finished checking length of vectors and dimensions of matrices\n");
+#endif /* BLATHER */
 
     int int_nbatch = INTEGER(nbatch)[0];
     int int_blen = INTEGER(blen)[0];
@@ -201,12 +213,16 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     if (has_outmat)
         check_finite(dbl_star_outmat, ncons * dim_nc, "outmat");
 
+#ifdef BLATHER
+    Rprintf("finished checking finiteness and positivity\n");
+#endif /* BLATHER */
+
     double *state = (double *) R_alloc(dim_nc, sizeof(double));
     double *proposal = (double *) R_alloc(dim_nc, sizeof(double));
     double *batch_buffer = (double *) R_alloc(dim_out, sizeof(double));
     double *out_buffer = (double *) R_alloc(dim_out, sizeof(double));
 
-    memcpy(state, dbl_star_initial, dim_nc);
+    memcpy(state, dbl_star_initial, dim_nc * sizeof(double));
     logh_setup(dbl_star_alpha, dbl_star_origin, dbl_star_basis, dim_oc, dim_nc);
     double current_log_dens = logh(state);
 
@@ -333,7 +349,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
                 }
 
                 if (accept) {
-                    memcpy(proposal, state, dim_nc);
+                    memcpy(proposal, state, dim_nc * sizeof(double));
                     current_log_dens = proposal_log_dens;
                 }
             } /* end of inner loop (one iteration) */
@@ -351,8 +367,8 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
 
     PutRNGstate();
 
-    PROTECT(save_final = allocVector(VECSXP, dim_nc));
-    memcpy(REAL(save_final), state, dim_nc);
+    PROTECT(save_final = allocVector(REALSXP, dim_nc));
+    memcpy(REAL(save_final), state, dim_nc * sizeof(double));
     SET_VECTOR_ELT(result, 2, save_final);
 
     UNPROTECT(5);
