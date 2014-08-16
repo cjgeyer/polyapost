@@ -185,36 +185,15 @@ i <- 1:d
 outmat <- rbind(i, i^2)
 dimnames(outmat) <- NULL
 
-hout <- hitrun(alpha, nbatch = 11, outmat = outmat,
+hout <- hitrun(alpha, nbatch = 101, blen = 17, outmat = outmat,
     a1 = a1, b1 = b1, a2 = a2, b2 = b2, debug = TRUE)
 nrow(outmat) == ncol(hout$batch)
-nrow(hout$current) == hout$nbatch * hout$blen
-my.out.mat <- outmat %*% basis
-my.out.vec <- outmat %*% cbind(origin)
-identical(my.out.mat, hout$my_out_mat)
-identical(as.vector(my.out.vec), hout$my_out_vec)
+mynext <- rbind(hout$current[- 1, ], hout$final)
 
-# cbind(hout$my_out_vec) + hout$my_out_mat %*% cbind(hout$current[1, ])
-# cbind(my.out.vec) + my.out.mat %*% cbind(hout$current[1, ])
-# outmat %*% (cbind(origin) + basis %*% cbind(hout$current[1, ]))
-# qux <- (cbind(origin) + basis %*% cbind(hout$current[1, ]))
-# outmat %*% qux
-
-foo <- basis %*% t(hout$current)
-foo <- sweep(foo, 1, origin, "+")
-bar <- outmat %*% foo
-bar <- t(bar)
-# bar <- array(as.vector(bar), c(hout$blen, hout$nbatch, ncol(bar)))
-# bar <- apply(bar, c(2, 3), mean)
-identical(dim(bar), dim(hout$batch))
-all.equal(bar, hout$batch)
-
-# fred <- hout$origin + hout$basis %*% cbind(hout$current[1, ])
-# fred <- outmat %*% fred
-# hout$batch[1, ]
-
-
-
-
-
+foo <- mynext %*% t(basis)
+foo <- sweep(foo, 2, origin, "+")
+foo <- foo %*% t(outmat)
+foo <- array(as.vector(foo), c(hout$blen, hout$nbatch, ncol(foo)))
+foo <- apply(foo, c(2, 3), mean)
+all.equal(foo, hout$batch)
 

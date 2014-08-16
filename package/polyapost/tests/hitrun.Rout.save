@@ -249,16 +249,23 @@ See the Warnings sections added to help pages for
 > 
 > i <- 1:d
 > outmat <- rbind(i, i^2)
-> hout <- hitrun(alpha, nbatch = 100, blen = 10, outmat = outmat,
+> dimnames(outmat) <- NULL
+> 
+> hout <- hitrun(alpha, nbatch = 101, blen = 17, outmat = outmat,
 +     a1 = a1, b1 = b1, a2 = a2, b2 = b2, debug = TRUE)
 > nrow(outmat) == ncol(hout$batch)
 [1] TRUE
+> mynext <- rbind(hout$current[- 1, ], hout$final)
 > 
-> 
-> 
-> 
+> foo <- mynext %*% t(basis)
+> foo <- sweep(foo, 2, origin, "+")
+> foo <- foo %*% t(outmat)
+> foo <- array(as.vector(foo), c(hout$blen, hout$nbatch, ncol(foo)))
+> foo <- apply(foo, c(2, 3), mean)
+> all.equal(foo, hout$batch)
+[1] TRUE
 > 
 > 
 > proc.time()
    user  system elapsed 
-  0.656   0.028   0.679 
+  0.652   0.040   0.688 
