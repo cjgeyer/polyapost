@@ -241,6 +241,8 @@ hitrunHelper <- function(alpha, initial, nbatch, blen, nspac,
     out$nbatch <- nbatch
     out$blen <- blen
     out$nspac <- nspac
+    out$origin <- origin
+    out$basis <- basis
     out$amat <- amat
     out$bvec <- bvec
     out$outmat <- outmat

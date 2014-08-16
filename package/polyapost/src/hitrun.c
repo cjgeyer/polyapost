@@ -94,18 +94,16 @@ static void outfun(double *state, double *buffer)
 
 void check_finite(double *x, int length, char *name)
 {
-    for (int i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++)
         if (! R_FINITE(x[i]))
             error("argument \"%s\" must have all components finite", name);
-    }
 }
 
 void check_positive(double *x, int length, char *name)
 {
-    for (int i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++)
         if (x[i] <= 0.0)
             error("argument \"%s\" must have all components positive", name);
-    }
 }
 
 SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
@@ -134,20 +132,12 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     if (! isLogical(debug))
         error("argument \"debug\" must be logical");
 
-#ifdef BLATHER
-    Rprintf("finished checking types\n");
-#endif /* BLATHER */
-
     if (! isMatrix(basis))
         error("argument \"basis\" must be matrix");
     if (! isMatrix(amat))
         error("argument \"amat\" must be matrix");
     if (! (isNull(outmat) | isMatrix(outmat)))
         error("argument \"outmat\" must be matrix or NULL");
-
-#ifdef BLATHER
-    Rprintf("finished checking matrices are matrices\n");
-#endif /* BLATHER */
 
     int dim_oc = LENGTH(alpha);
     int dim_nc = LENGTH(initial);
@@ -174,13 +164,9 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     int dim_out = dim_oc;
     if (! isNull(outmat)) {
         dim_out = nrows(outmat);
-        if (ncols(outmat) != dim_nc)
-            error("ncol(outmat) != length(initial)");
+        if (ncols(outmat) != dim_oc)
+            error("ncol(outmat) != length(alpha)");
     }
-
-#ifdef BLATHER
-    Rprintf("finished checking length of vectors and dimensions of matrices\n");
-#endif /* BLATHER */
 
     int int_nbatch = INTEGER(nbatch)[0];
     int int_blen = INTEGER(blen)[0];
@@ -209,13 +195,9 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     check_finite(dbl_star_origin, dim_oc, "origin");
     check_finite(dbl_star_basis, dim_oc * dim_nc, "basis");
     check_finite(dbl_star_amat, ncons * dim_nc, "amat");
-    check_finite(dbl_star_bvec, ncons * dim_nc, "bvec");
+    check_finite(dbl_star_bvec, ncons, "bvec");
     if (has_outmat)
         check_finite(dbl_star_outmat, ncons * dim_nc, "outmat");
-
-#ifdef BLATHER
-    Rprintf("finished checking finiteness and positivity\n");
-#endif /* BLATHER */
 
     double *state = (double *) R_alloc(dim_nc, sizeof(double));
     double *proposal = (double *) R_alloc(dim_nc, sizeof(double));
@@ -349,7 +331,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
                 }
 
                 if (accept) {
-                    memcpy(proposal, state, dim_nc * sizeof(double));
+                    memcpy(state, proposal, dim_nc * sizeof(double));
                     current_log_dens = proposal_log_dens;
                 }
             } /* end of inner loop (one iteration) */

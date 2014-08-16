@@ -33,13 +33,16 @@ identical(.Random.seed, hout$final.seed)
 identical(myz, hout$z)
 identical(myu1, hout$u1)
 identical(myu2, hout$u2)
+identical(.Random.seed, hout$final.seed)
 
 # check green ratios (trivial for this problem)
 all(hout$log.green == 0)
 
 # check construction of basis, origin, amat, bvec, rip
 hrep4 <- makeH(a1 = a1, b1 = b1)
+hrep4 <- addHin(- diag(d), rep(0, d), hrep4)
 hrep3 <- makeH(a2 = a2, b2 = b2)
+hrep3 <- addHeq(rep(1, d), 1, hrep3)
 hrep4 <- d2q(hrep4)
 hrep3 <- d2q(hrep3)
 dim(hrep3)
@@ -54,10 +57,16 @@ foo <- vrep3[ , - c(1, 2)]
 origin <- foo[is.point, ]
 basis <- foo[is.line, ]
 basis <- t(basis)
-a1q <- d2q(a1)
-b1q <- d2q(b1)
-amat <- qmatmult(a1q, basis)
-bvec <- qmq(b1q, qmatmult(a1q, cbind(origin)))
+identical(q2d(origin), hout$origin)
+identical(q2d(basis), hout$basis)
+
+amat <- qneg(hrep4[ , - c(1, 2)])
+bvec <- hrep4[ , 2]
+bvec <- qmq(bvec, qmatmult(amat, cbind(origin)))
+amat <- qmatmult(amat, basis)
+identical(q2d(amat), hout$amat)
+identical(q2d(bvec), hout$bvec)
+
 hrep5 <- makeH(a1 = amat, b1 = bvec)
 vrep5 <- scdd(hrep5)$output
 is.point <- vrep5[ , 1] == "0" & vrep5[ , 2] == "1"
@@ -65,18 +74,13 @@ all(is.point)
 v <- vrep5[ , - c(1, 2)]
 x <- apply(v, 2, qsum)
 x <- qdq(x, rep(as.character(nrow(v)), length(x)))
+identical(q2d(x), hout$initial)
 
 origin <- q2d(origin)
 basis <- q2d(basis)
 amat <- q2d(amat)
 bvec <- q2d(bvec)
-x.initial <- q2d(x)
-identical(origin, hout$origin)
-identical(basis, hout$basis)
-identical(amat, hout$amat)
-identical(bvec, hout$bvec)
-identical(x.initial, hout$initial)
-identical(x.initial, hout$current[1, ])
+initial <- q2d(x)
 
 # check bounds
 mys1 <- rep(Inf, nrow(hout$current))
@@ -116,7 +120,7 @@ all(foo <= 0)
 # check transformation
 foo <- hout$proposal %*% t(basis)
 foo <- sweep(foo, 2, origin, "+")
-identical(foo, hout$batch)
+all.equal(foo, hout$batch, tol = 1e-13)
 
 # check path is feasible (original coordinates)
 foo <- hout$batch %*% t(a1)
@@ -142,7 +146,7 @@ foo <- sweep(foo, 2, origin, "+")
 bar <- hout$proposal %*% t(basis)
 bar <- sweep(bar, 2, origin, "+")
 my.log.green <- apply(bar, 1, ludfun) - apply(foo, 1, ludfun)
-identical(my.log.green, hout$log.green)
+all.equal(my.log.green, hout$log.green, tol = 1e-13)
 identical(is.na(hout$u2), hout$log.green >= 0)
 my.accept.1 <- is.na(hout$u2) | hout$u2 < exp(hout$log.green)
 foo <- hout$proposal
@@ -174,4 +178,30 @@ dim(mybatch)
 mybatch <- apply(mybatch, c(2, 3), mean)
 dim(mybatch)
 all.equal(mybatch, hout3$batch)
+
+# now check with outmat
+
+i <- 1:d
+outmat <- rbind(i, i^2)
+
+hout <- hitrun(alpha, nbatch = 10, outmat = outmat,
+    a1 = a1, b1 = b1, a2 = a2, b2 = b2, debug = TRUE)
+nrow(outmat) == ncol(hout$batch)
+nrow(hout$current) == hout$nbatch * hout$blen
+foo <- hout$current %*% t(basis)
+foo <- sweep(foo, 2, origin, "+")
+bar <- outmat %*% t(foo)
+bar <- t(bar)
+bar <- array(as.vector(bar), c(hout$blen, hout$nbatch, ncol(bar)))
+bar <- apply(bar, c(2, 3), mean)
+identical(dim(bar), dim(hout$batch))
+all.equal(bar, hout$batch)
+
+# fred <- hout$origin + hout$basis %*% cbind(hout$current[1, ])
+# fred <- outmat %*% fred
+# hout$batch[1, ]
+
+
+
+
 
