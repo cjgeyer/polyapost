@@ -260,16 +260,12 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     namesgets(result, resultnames);
     UNPROTECT(1);
 
-    // REVISED DOWN TO HERE
-
     GetRNGstate();
 
     if (current_log_dens == R_NegInf)
         error("log unnormalized density -Inf at initial state");
 
     for (int ibatch = 0, k = 0; ibatch < int_nbatch; ibatch++) {
-
-        int j;
 
         for (int i = 0; i < dim_out; i++)
             batch_buffer[i] = 0.0;
@@ -337,12 +333,12 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
             } /* end of inner loop (one iteration) */
 
             outfun(state, out_buffer);
-            for (j = 0; j < dim_out; j++)
+            for (int j = 0; j < dim_out; j++)
                 batch_buffer[j] += out_buffer[j];
 
         } /* end of middle loop (one batch) */
 
-        for (j = 0; j < dim_out; j++, k++)
+        for (int j = 0; j < dim_out; j++, k++)
             REAL(path)[k] = batch_buffer[j] / int_blen;
 
     } /* end of outer loop */

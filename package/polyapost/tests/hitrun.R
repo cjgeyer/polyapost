@@ -183,23 +183,36 @@ all.equal(mybatch, hout3$batch)
 
 i <- 1:d
 outmat <- rbind(i, i^2)
+dimnames(outmat) <- NULL
 
-hout <- hitrun(alpha, nbatch = 10, outmat = outmat,
+hout <- hitrun(alpha, nbatch = 11, outmat = outmat,
     a1 = a1, b1 = b1, a2 = a2, b2 = b2, debug = TRUE)
 nrow(outmat) == ncol(hout$batch)
 nrow(hout$current) == hout$nbatch * hout$blen
-foo <- hout$current %*% t(basis)
-foo <- sweep(foo, 2, origin, "+")
-bar <- outmat %*% t(foo)
+my.out.mat <- outmat %*% basis
+my.out.vec <- outmat %*% cbind(origin)
+identical(my.out.mat, hout$my_out_mat)
+identical(as.vector(my.out.vec), hout$my_out_vec)
+
+# cbind(hout$my_out_vec) + hout$my_out_mat %*% cbind(hout$current[1, ])
+# cbind(my.out.vec) + my.out.mat %*% cbind(hout$current[1, ])
+# outmat %*% (cbind(origin) + basis %*% cbind(hout$current[1, ]))
+# qux <- (cbind(origin) + basis %*% cbind(hout$current[1, ]))
+# outmat %*% qux
+
+foo <- basis %*% t(hout$current)
+foo <- sweep(foo, 1, origin, "+")
+bar <- outmat %*% foo
 bar <- t(bar)
-bar <- array(as.vector(bar), c(hout$blen, hout$nbatch, ncol(bar)))
-bar <- apply(bar, c(2, 3), mean)
+# bar <- array(as.vector(bar), c(hout$blen, hout$nbatch, ncol(bar)))
+# bar <- apply(bar, c(2, 3), mean)
 identical(dim(bar), dim(hout$batch))
 all.equal(bar, hout$batch)
 
 # fred <- hout$origin + hout$basis %*% cbind(hout$current[1, ])
 # fred <- outmat %*% fred
 # hout$batch[1, ]
+
 
 
 
