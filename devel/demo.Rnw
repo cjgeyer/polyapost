@@ -1,0 +1,215 @@
+
+\documentclass{article}
+
+\usepackage{natbib}
+\usepackage{graphics}
+\usepackage{amsmath}
+\usepackage{indentfirst}
+% \usepackage[utf8]{inputenc}
+\usepackage{url}
+
+\DeclareMathOperator{\var}{var}
+\DeclareMathOperator{\cov}{cov}
+
+% \VignetteIndexEntry{Hitrun Example}
+
+\begin{document}
+
+<<foo,include=FALSE,echo=FALSE>>=
+options(keep.source = TRUE, width = 60)
+foo <- packageDescription("polyapost")
+bar <- paste(R.version$major, R.version$minor, sep = ".")
+@
+
+\title{Polyapost Package, Hitrun Function, Example}
+\author{Charles J. Geyer}
+\maketitle
+
+\section{The Problem}
+
+This is an example of using the \texttt{hitrun} function in
+the \texttt{polyapost} package \citep*{polyapost-package}.
+This document was run using Sweave in R version \Sexpr{bar}
+and the \texttt{polyapost} package from CRAN version \Sexpr{foo$Version}.
+
+This vignette does a toy problem.  See \citet*{lazar-meeden-nelson}
+for real applications.
+
+We consider a constrained Dirichlet random vector with dimension
+<<d>>=
+d <- 20
+@
+(if the reader wants a larger example, change \texttt{d} here).
+
+We consider this random vector the prior or posterior distribution for
+the cells of a contingency table.  We also have data associated with these
+cells
+<<x>>=
+x <- 1:d
+@
+We can consider this numeric data to define a random vector on the probability
+space of the Dirichlet random vector.  Thus for any function $g$ the
+expectation of that random vector is
+\begin{equation} \label{eq:expect}
+   E\{ g(X) \} = \sum_{i = 1}^x g(x_i) p_i,
+\end{equation}
+where $p$ is the Dirichlet random vector.  This is a random quantity because
+$p$ is a random vector.  The \texttt{hitrun} function simulates such random
+vectors.
+
+But it simulates not only unconstrained Dirichlet random vectors but also
+linear equality and linear inequality constrained random vectors.
+The reason we restrict to linear constraints is that every probability and
+expectation on this probability space has the form \eqref{eq:expect}, which
+is linear in $p$.  It is, of course, not necessarily linear in $x$, but,
+as in all Bayesian calculations, we are considering the data vector $x$ fixed
+and the parmameter vector $p$ random.
+
+The help page for the \texttt{hitrun} function tells us to present
+the constraints by giving a matrix and a vector.  The inequality constraints
+are $A_1 p \le b_1$ and the equality constraints are $A_2 p = b_2$
+(where $A_i$ is a matrix and $p$ and $b_i$ are vectors).
+
+For our equality constraint (there may be many, but we have just one)
+suppose we have prior knowledge that the median of the distribution
+of $X$ induced by the constrained Dirichlet
+distribution is exactly the mean of the $x$ values.
+Actually, this is only an equality constraint if none of the $x$ values
+is equal to the mean of the $x$ values.
+<<a2b2>>=
+mu <- mean(x)
+if (any(x == mu)) {
+    a2 <- NULL
+    b2 <- NULL
+} else {
+    a2 <- rbind(as.numeric(x < mu))
+    b2 <- 1 / 2
+}
+@
+Otherwise we get two inequality constraints
+<<a1b1>>=
+if (any(x == mu)) {
+    a1 <- rbind(as.numeric(x < mu), as.numeric(x > mu))
+    b1 <- rep(1 / 2, 2)
+} else {
+    a1 <- NULL
+    b1 <- NULL
+}
+@
+To these constraints we add constraints that reflect
+prior knowledge that the mean of the distribution
+of $X$ induced by the constrained Dirichlet is between the 30-th percentile
+and the 80-th percentile of the distribution of the $x$ values.
+<<a2b2too>>=
+a1 <- rbind(a1, - x, x)
+b1 <- c(b1, quantile(x, probs = 0.30, type = 1),
+   quantile(x, probs = 0.80, type = 1))
+dimnames(a1) <- NULL
+names(b1) <- NULL
+@
+
+So there we are
+<<show-one>>=
+a1
+b1
+@
+<<show-two>>=
+a2
+b2
+@
+The Dirichlet parameter vector we take to be
+<<alpha>>=
+alpha <- rep(2.25, d)
+@
+
+\section{Markov Chain Monte Carlo}
+
+Now we are ready to simulate this constrained distribution.
+To get same answers every time we set the random number generator
+seed.  To get different answers every time, delete that statement.
+<<setup>>=
+library(polyapost)
+set.seed(42)
+@
+First try.
+<<try1>>=
+hout <- hitrun(alpha, a1, b1, a2, b2, nbatch = 1e4)
+dim(hout$batch)
+@
+We have \Sexpr{nrow(hout$batch)} simulations of a random vector $p$
+having dimension \Sexpr{ncol(hout$batch)}.
+
+To get some idea of the number of iterations over which there are significant
+autocorrelations, we use the \texttt{initseq} function in the \texttt{mcmc}
+package \citep{mcmc-package}.
+<<corr-length>>=
+library(mcmc)
+fred <- function(x, cutoff = 1e-4) {
+    foo <- initseq(x)
+    bar <- 2 * rev(cumsum(rev(foo$Gamma.con)))
+    bar[1] <- bar[1] - foo$gamma0
+    bar <- bar / foo$var.con
+    2 * sum(bar > cutoff) - 1
+}
+apply(hout$batch, 2, fred)
+@
+This rather strange looking function estimates a lag that contains
+99.99\% of the asymptotic variance in the central limit theorem in the
+autocovariances of less than that lag.  See the help page for the
+\texttt{initseq} function for details.
+
+To be safe, let us choose a batch length of 1000 to get nearly independent
+batches.  Then we rerun and redo our ``diagnostic'' (not really, we make
+no ``diagnostic'' guarantees).
+<<try2>>=
+hout <- hitrun(hout, nbatch = 100, blen = 1000)
+apply(hout$batch, 2, fred)
+@
+Looks like we need at least 10 times longer batches (this is typical
+of ``diagnostics,'' the longer you run, the more likely you are to find
+problems, so what you ``diagnose'' depends on run length).
+<<try3>>=
+hout <- hitrun(hout, nbatch = 100, blen = 10000)
+apply(hout$batch, 2, fred)
+@
+Looks like we need to run even longer than that, but because of running
+time restrictions in examples, tests, and vignettes for CRAN packages,
+we quit here.
+
+\section{Output Analysis}
+
+Suppose we are interested in the mean of the
+random variable $X$ induced by the distribution of $p$.
+To reduce to that we use the argument \texttt{outmat}
+<<try4>>=
+outmat <- rbind(x)
+hout <- hitrun(hout, outmat = outmat)
+dim(hout$batch)
+mean(hout$batch)
+sd(hout$batch) / sqrt(hout$nbatch)
+@
+
+
+\begin{thebibliography}{}
+
+\bibitem[Geyer and Johnson(2014)]{mcmc-package}
+Geyer, C.~J. and Johnson, L.~T. (2014).
+\newblock R package \texttt{mcmc} (Markov Chain Monte Carlo), version 0.9-3.
+\newblock \url{http://cran.r-project.org/package=mcmc}.
+
+\bibitem[{Lazar et~al.(2008)Lazar, Meeden, and Nelson}]{lazar-meeden-nelson}
+Lazar, R., Meeden, G., and Nelson, D. (2008).
+\newblock A noninformative Bayesian approach to finite population sampling
+  using auxiliary variables.
+\newblock \emph{Survey Methodology}, 34:51--64.
+
+\bibitem[Meeden, et al.(2014)Meeden, Lazar and Geyer]{polyapost-package}
+Meeden, G., Lazar, R., and Geyer, C.~J. (2014).
+\newblock R package \texttt{polyapost} (Simulating from the Polya posterior),
+    version 1.2.
+\newblock \url{http://cran.r-project.org/package=polyapost}.
+
+\end{thebibliography}
+
+\end{document}
+
