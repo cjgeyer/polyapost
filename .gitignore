@@ -11,4 +11,5 @@ symbols.rds
 *.Rout
 *~
 devel/hitrun.tex
+devel/hitrun2.tex
 devel/demo.tex
