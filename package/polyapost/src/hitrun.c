@@ -198,7 +198,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     check_finite(dbl_star_amat, ncons * dim_nc, "amat");
     check_finite(dbl_star_bvec, ncons, "bvec");
     if (has_outmat)
-        check_finite(dbl_star_outmat, ncons * dim_nc, "outmat");
+        check_finite(dbl_star_outmat, dim_out * dim_oc, "outmat");
 
     double *state = (double *) R_alloc(dim_nc, sizeof(double));
     double *proposal = (double *) R_alloc(dim_nc, sizeof(double));
