@@ -32,7 +32,7 @@ static R_CMethodDef cMethods[] = {
 };
 
 static R_CallMethodDef callMethods[]  = {
-    {"hitrun", (DL_FUNC) &hitrun, 11},
+    {"hitrun", (DL_FUNC) &hitrun, 12},
     {NULL, NULL, 0}
 };
 
