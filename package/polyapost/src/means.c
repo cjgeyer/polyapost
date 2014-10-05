@@ -2,8 +2,9 @@
 /*for combined equality and inequality constraints A1x=b1,A2x<=b2. It returns all values.*/
 
 #include <R.h>
+#include "polyapost.h"
 
-double sum( double x[], int vectsize )
+static double sum( double x[], int vectsize )
 {
      double s;
      int i;
@@ -13,7 +14,7 @@ double sum( double x[], int vectsize )
      return(s);
 }
 /*computes the inner product of two vectors*/
-double inprod( double x[], double y[], int vectsize )
+static double inprod( double x[], double y[], int vectsize )
 {
      double s;
      int i;
@@ -24,7 +25,7 @@ double inprod( double x[], double y[], int vectsize )
 }
 
 
-void f(double x[], double y[], int vectSize, double* pMin, double* pMax)
+static void f(double x[], double y[], int vectSize, double* pMin, double* pMax)
 {
   int i;
   double maxDiv=-DBL_MAX; /*I make sure that,initially, any value is bigger than maxDiv*/
@@ -69,9 +70,9 @@ result stores the means we generate
 
 #define P(i,j) p[(i)+n*(j)]
 #define A2(i,j) a2[(i)+m*(j)]
-void gen( double *p, int matsize, double *a2, int nrow, double *b2, double *initsol, 
-	  double *result, double *z, double *z1, double *d, double *d1, double *d2,
-          double *x1, double* x2)
+static void gen( double *p, int matsize, double *a2, int nrow, double *b2,
+    double *initsol, double *result, double *z, double *z1, double *d,
+    double *d1, double *d2, double *x1, double* x2)
 {
   int m=nrow;
   int n=matsize;

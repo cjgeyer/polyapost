@@ -2,7 +2,9 @@
 /*for combined equality and inequality constraints A1x=b1,A2x<=b2. It returns the last value.*/
 
 #include <R.h>
-double sum1( double x[], int vectsize )
+#include "polyapost.h"
+
+static double sum1( double x[], int vectsize )
 {
      double s;
      int i;
@@ -12,7 +14,7 @@ double sum1( double x[], int vectsize )
      return(s);
 }
 
-void f1(double x[], double y[], int vectSize, double* pMin, double* pMax)
+static void f1(double x[], double y[], int vectSize, double* pMin, double* pMax)
 {
   int i;
   double maxDiv=-DBL_MAX; /*I make sure that,initially, any value is bigger than maxDiv*/
@@ -57,7 +59,7 @@ result stores the means we generate
 
 #define P(i,j) p[(i)+n*(j)]
 #define A2(i,j) a2[(i)+m*(j)]
-void gen1( double *p, int matsize, double *a2, int nrow, double *b2, double *initsol,
+static void gen1( double *p, int matsize, double *a2, int nrow, double *b2, double *initsol,
  double *result,  double *z, double *z1, double *d, double *d1, double *d2,
           double *x1, double* x2)
 {

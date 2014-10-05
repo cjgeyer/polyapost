@@ -1,5 +1,6 @@
 
 #include <R.h>
+#include "polyapost.h"
 
 void cwpolya(double *x, double *w, int *nin, int *Nin)
 {

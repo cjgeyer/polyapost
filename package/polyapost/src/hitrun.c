@@ -4,9 +4,10 @@
 #include <Rmath.h>
 #include <R_ext/BLAS.h>
 #include <string.h>
+#include "polyapost.h"
 
-void propose(double *x, double *proposal, double *a, double *b, int d, int n,
-    double *z, double *smax_out, double *smin_out, double *u_out);
+static void propose(double *x, double *proposal, double *a, double *b, int d,
+    int n, double *z, double *smax_out, double *smin_out, double *u_out);
 
 static int my_dim_oc = 0;
 static int my_dim_nc = 0;
@@ -92,14 +93,14 @@ static void outfun(double *state, double *buffer)
         my_out_mat, &nrow_my_out_mat, state, &ione, &one, buffer, &ione);
 }
 
-void check_finite(double *x, int length, char *name)
+static void check_finite(double *x, int length, char *name)
 {
     for (int i = 0; i < length; i++)
         if (! R_FINITE(x[i]))
             error("argument \"%s\" must have all components finite", name);
 }
 
-void check_positive(double *x, int length, char *name)
+static void check_positive(double *x, int length, char *name)
 {
     for (int i = 0; i < length; i++)
         if (x[i] <= 0.0)
@@ -353,8 +354,8 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     return result;
 }
 
-void propose(double *x, double *proposal, double *a, double *b, int d, int n,
-    double *z, double *smax_out, double *smin_out, double *u_out)
+static void propose(double *x, double *proposal, double *a, double *b, int d,
+    int n, double *z, double *smax_out, double *smin_out, double *u_out)
 {
     for (int i = 0; i < d; i++) {
         z[i] = norm_rand();

@@ -19,7 +19,7 @@ means<-function(P, matsize, A2, nrow, b2, initsol, rep, ysamp)
 the length of the rhs vector")}
  if(matsize!=length(ysamp)){stop("the size of the sample does not match the no. of
 columns of the constraint matrix")}
- foo<-.C("means",
+ foo<-.C(C_means,
         P=as.double(P),
         matsize=as.integer(matsize),
 	A2=as.double(A2),
@@ -28,8 +28,7 @@ columns of the constraint matrix")}
         initsol=as.double(initsol),
         rep=as.integer(rep),
 	ysamp=as.double(ysamp),
-        estimate=double(rep),
-	PACKAGE="polyapost")
+        estimate=double(rep))
  return(foo$estimate)
 }
 
