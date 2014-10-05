@@ -14,7 +14,7 @@ probvect1<-function(P, matsize, A2, nrow, b2, initsol, length)
  if(ncol(P)!=matsize) {stop("the dimension of the matrix that spans the null space is not equal to the second parameter")}
  if(nrow(A2)!=nrow) {stop("wrong no. of rows")}
  if(nrow!=length(b2)) {stop(" the no. of rows of the constraint matrix does not match the length of the rhs vector ")}
- foo<-.C("probvect1",
+ foo<-.C(C_probvect1,
         P=as.double(P),
         matsize=as.integer(matsize),
 	A2=as.double(A2),
@@ -22,8 +22,7 @@ probvect1<-function(P, matsize, A2, nrow, b2, initsol, length)
 	b2=as.double(b2),
         initsol=as.double(initsol),
         length=as.integer(length),
-        estimate=double(matsize),
-	PACKAGE="polyapost")
+        estimate=double(matsize))
  return(foo$estimate)
 }
 

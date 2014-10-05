@@ -8,11 +8,10 @@ cwpolya <- function(samp, wts, k) {
 	k <- as.integer(k)
 	if (k <= 0)
 		stop("k must be positive integer")
-       out<-.C("cwpolya",
+       out<-.C(C_cwpolya,
        x=as.double(c(samp, rep(0, k))),
        w=as.double(cumsum(wts)),
        n=as.integer(length(samp)),
-       k=as.integer(k),
-       PACKAGE="polyapost")
+       k=as.integer(k))
        return(out$x)
 }
