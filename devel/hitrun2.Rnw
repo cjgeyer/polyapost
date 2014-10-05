@@ -2,10 +2,16 @@
 \documentclass[11pt]{article}
 
 \usepackage{amsmath}
+\usepackage{amsfonts}
 \usepackage{indentfirst}
+\usepackage{natbib}
 
 \newcommand{\opand}{\mathbin{\rm and}}
 \newcommand{\opor}{\mathbin{\rm or}}
+
+\DeclareMathOperator{\var}{var}
+
+\newcommand{\real}{\mathbb{R}}
 
 \begin{document}
 
@@ -432,14 +438,16 @@ the set of points of the form $x + s z$ that lie in the convex polytope
 are those for which $s_{\text{min}} \le s \le s_{\text{max}}$.
 And (as mentioned above) we always have $s_{\text{min}} < 0 < s_{\text{max}}$.
 
-\subsection{Proposal Direction}
+\subsection{Proposal Direction Distribution}
 
-And how do we choose the mean-zero normal distribution for
-the proposal direction?  In Version~1 of the \texttt{hitrun} function,
+As mentioned above, the direction for the hit-and-run proposal will have
+a mean-zero normal distribution.  What mean-zero normal distribution?
+
+In Version~1 of the \texttt{hitrun} function,
 for the convenience of the programmer, a (multivariate) standard normal
 distribution was used.  This is standard normal in the new coordinates,
 and since many things about the new coordinates are arbitrary (there
-are many ways to parameterize and affine set), this choice is also arbitrary.
+are many ways to coordinatize an affine set), this choice is also arbitrary.
 It is merely a TTD (thing to do).  It has no other desirable properties.
 
 Here we try to allow the use of better proposal distributions.  Since we
@@ -449,15 +457,49 @@ automatically choose the proposal direction variance matrix.  Perhaps
 the user can specify something, especially using information from previous
 runs of the sampler.  The empirical variance of the state vector perhaps?
 
-We have the problem of going from the old coordinates, which are the only
-ones users see and understant, to the new coordinates, which is what the
-computer uses.  A variance can be thought of as either a matrix or as
-a quadratic form.  If $M$ is the variance matrix of the random vector $X$,
-then the quadratic form is
-$$
-   b \mapsto b^T M b = \var(b^T X)
-$$
+We also have a user-interface issue.  When running the sampler, the computer
+makes proposals using a non-degenerate normal distribution on the affine
+hull of the constraint set using the new coordinates.  But people using
+the function do not know about new coordinates, which
+are arbitrary (there are many ways to coordinatize the affine hull).
+So the user needs to specify the proposal direction variance matrix
+in old coordinates, where it specifies a degenerate normal distribution
+(concentrated on the affine hull or, more precisely, on the tangent
+space of the affine hull, which is the vector subspace parallel to
+the affine hull).
 
+Let $d$ be the dimension of the state vector in old coordinates, and
+let $p$ be the dimension of the state vector in new coordinates, so
+if $y = u + V x$ is the map from new to old, the matrix $V$ is $d \times p$.
+We let the user specify an arbitrary mean-zero normal distribution on
+$\real^d$, and we use the restriction of this to the tangent space of
+the affine hull of the constraint set as the proposal distribution.
+The user-specified distribution has probability density function (PDF)
+proportional to
+$$
+   f(y) = \exp\left( - \tfrac{1}{2} y^T \Sigma^{- 1} y \right).
+$$
+The restriction to the tangent space has PDF proportional to
+$$
+   f(x) = \exp\left( - \tfrac{1}{2} x^T V^T \Sigma^{- 1} V x \right).
+$$
+Hence the desired proposal distribution is normal with mean vector zero
+and variance matrix
+$$
+   \left(V^T \Sigma^{- 1} V \right)^{- 1}.
+$$
+The reason why two matrix inverses appear here is similar to the
+reason why two matrix inverses appear in the normal approximation
+in \citet[Remark~4.6]{geyer-meeden}.
+
+\begin{thebibliography}{}
+
+\bibitem[Geyer and Meeden(2013)]{geyer-meeden}
+Geyer, C.~J. and Meeden, G.~D. (2013).
+\newblock Asymptotics for constrained Dirichlet distributions.
+\newblock \emph{Bayesian Analysis}, \textbf{8}, 89--110.
+
+\end{thebibliography}
 
 \end{document}
 
