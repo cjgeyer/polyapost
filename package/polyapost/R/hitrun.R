@@ -16,6 +16,7 @@ hitrun.hitrun <- function(alpha, nbatch, blen, nspac, scale, outmat, debug, ...)
     if (missing(nbatch)) nbatch <- alpha$nbatch
     if (missing(blen)) blen <- alpha$blen
     if (missing(nspac)) nspac <- alpha$nspac
+    if (missing(scale)) scale <- alpha$scale
     if (missing(outmat)) outmat <- alpha$outmat
     if (missing(debug)) debug <- alpha$debug
 
@@ -26,7 +27,7 @@ hitrun.hitrun <- function(alpha, nbatch, blen, nspac, scale, outmat, debug, ...)
     bvec <- alpha$bvec
 
     out <- hitrunHelper(alpha$alpha, alpha$final, nbatch, blen, nspac,
-        origin, basis, amat, bvec, outmat, debug)
+        origin, basis, amat, bvec, scale, outmat, debug)
 
     class(out) <- "hitrun"
     return(out)
@@ -153,7 +154,7 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     rip <- q2d(rip)
 
     out <- hitrunHelper(alpha, rip, nbatch, blen, nspac,
-        origin, basis, amat, bvec, outmat, debug)
+        origin, basis, amat, bvec, scale, outmat, debug)
 
     if (! missing(a1)) {
         out$a1 <- a1
@@ -168,7 +169,7 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
 }
 
 hitrunHelper <- function(alpha, initial, nbatch, blen, nspac,
-        origin, basis, amat, bvec, outmat, debug)
+        origin, basis, amat, bvec, scale, outmat, debug)
 {
     if (! exists(".Random.seed")) runif(1)
     saveseed <- .Random.seed
@@ -213,6 +214,16 @@ hitrunHelper <- function(alpha, initial, nbatch, blen, nspac,
     stopifnot(is.vector(bvec))
     stopifnot(nrow(amat) == length(bvec))
     stopifnot(ncol(amat) == length(initial))
+
+    stopifnot(is.numeric(scale))
+    stopifnot(is.finite(scale))
+    stopifnot(is.matrix(scale) || is.vector(scale))
+    if (is.matrix(scale)) {
+        stopifnot(nrow(scale) == length(alpha))
+        stopifnot(ncol(scale) == length(alpha))
+    } else {
+        stopifnot(length(scale) == length(alpha))
+    }
 
     if (! is.null(outmat)) {
         stopifnot(is.numeric(outmat))
