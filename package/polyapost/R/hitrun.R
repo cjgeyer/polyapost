@@ -11,7 +11,7 @@
 hitrun <- function(alpha, ...)
     UseMethod("hitrun")
 
-hitrun.hitrun <- function(alpha, nbatch, blen, nspac, outmat, debug, ...)
+hitrun.hitrun <- function(alpha, nbatch, blen, nspac, scale, outmat, debug, ...)
 {
     if (missing(nbatch)) nbatch <- alpha$nbatch
     if (missing(blen)) blen <- alpha$blen
@@ -33,7 +33,8 @@ hitrun.hitrun <- function(alpha, nbatch, blen, nspac, outmat, debug, ...)
 }
 
 hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL, 
-     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE, ...)
+     nbatch = 1, blen = 1, nspac = 1, scale = alpha, outmat = NULL,
+     debug = FALSE, ...)
 {
     if (! exists(".Random.seed")) runif(1)
     saveseed <- .Random.seed

@@ -374,6 +374,7 @@ static int prop_ncons = 0;
 static double *prop_amat = 0;
 static double *prop_bvec = 0;
 static double *prop_scale = 0;
+static double *prop_z = 0;
 
 static void proposal_setup(double *amat, double *bvec, int dim_nc,
     int ncons, double *scale)
@@ -383,6 +384,7 @@ static void proposal_setup(double *amat, double *bvec, int dim_nc,
     prop_amat = (double *) R_alloc(ncons * dim_nc, sizeof(double));
     prop_bvec = (double *) R_alloc(ncons, sizeof(double));
     prop_scale = (double *) R_alloc(dim_nc * dim_nc, sizeof(double));
+    prop_z = (double *) R_alloc(dim_nc, sizeof(double));
 
     memcpy(prop_amat, amat, ncons * dim_nc * sizeof(double));
     memcpy(prop_bvec, bvec, ncons * sizeof(double));
@@ -396,6 +398,13 @@ static void propose(double *x, double *proposal,
         z[i] = norm_rand();
     }
 
+    // prop_z := prop_scale * z
+    double one = 1.0;
+    double zero = 0.0;
+    int ione = 1;
+    F77_CALL(dgemv)("n", &prop_dim_nc, &prop_dim_nc, &one, prop_scale,
+        &prop_dim_nc, z, &ione, &zero, prop_z, &ione);
+
     double smax = R_PosInf;
     double smin = R_NegInf;
 
@@ -405,7 +414,7 @@ static void propose(double *x, double *proposal,
         double az = 0.0;
         for (int j = 0; j < prop_dim_nc; j++) {
             ax += prop_amat[i + j * prop_ncons] * x[j];
-            az += prop_amat[i + j * prop_ncons] * z[j];
+            az += prop_amat[i + j * prop_ncons] * prop_z[j];
         }
         double bound = (prop_bvec[i] - ax) / az;
         if (az > 0 && bound < smax)
@@ -417,7 +426,7 @@ static void propose(double *x, double *proposal,
     double u = unif_rand();
 
     for (int i = 0; i < prop_dim_nc; i++)
-        proposal[i] = x[i] + (u * smin + (1.0 - u) * smax) * z[i];
+        proposal[i] = x[i] + (u * smin + (1.0 - u) * smax) * prop_z[i];
 
     *smax_out = smax;
     *smin_out = smin;
