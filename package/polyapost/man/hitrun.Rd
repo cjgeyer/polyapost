@@ -11,9 +11,11 @@
 hitrun(alpha, \dots)
 
 \S3method{hitrun}{default}(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
-     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE, \dots)
+     nbatch = 1, blen = 1, nspac = 1, scale = alpha, outmat = NULL,
+     debug = FALSE, \dots)
 
-\S3method{hitrun}{hitrun}(alpha, nbatch, blen, nspac, outmat, debug, \dots)
+\S3method{hitrun}{hitrun}(alpha, nbatch, blen, nspac, scale, outmat, debug,
+     \dots)
 }
 \arguments{
   \item{alpha}{parameter vector for Dirichlet distribution.  Alternatively,
@@ -27,6 +29,8 @@ hitrun(alpha, \dots)
   \item{b1}{a numeric vector. See details.}
   \item{a2}{a numeric matrix. See details.}
   \item{b2}{a numeric vector. See details.}
+  \item{scale}{a numeric matrix, which controls the direction of proposals.
+      See details.}
   \item{outmat}{a numeric matrix, which controls the output.  If \code{p}
       is the constrained Dirichlet random vector being simulated, then
       \code{outmat \%*\% p} is the functional of the state that is averaged.
@@ -47,6 +51,10 @@ subset of the unit simplex consisting of \code{x} satisfying
     a1 \%*\% x <= b1
     a2 \%*\% x == b2
 }
+If one does not use the default for the \code{scale} argument, it should
+be the variance for a mean-zero normal distribution whose restriction to
+the tangent space of the constraint set is approximately proportional to
+the variance matrix of the distribution being sampled.
 }
 \value{
   an object of class \code{"hitrun"},

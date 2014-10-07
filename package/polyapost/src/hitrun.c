@@ -6,8 +6,11 @@
 #include <string.h>
 #include "polyapost.h"
 
-static void propose(double *x, double *proposal, double *a, double *b, int d,
-    int n, double *z, double *smax_out, double *smin_out, double *u_out);
+static void proposal_setup(double *amat, double *bvec, int dim_nc,
+    int ncons, double *scale);
+
+static void propose(double *x, double *proposal,
+    double *z, double *smax_out, double *smin_out, double *u_out);
 
 static int my_dim_oc = 0;
 static int my_dim_nc = 0;
@@ -108,7 +111,8 @@ static void check_positive(double *x, int length, char *name)
 }
 
 SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
-    SEXP origin, SEXP basis, SEXP amat, SEXP bvec, SEXP outmat, SEXP debug)
+    SEXP origin, SEXP basis, SEXP amat, SEXP bvec, SEXP outmat, SEXP debug,
+    SEXP scale)
 {
     if (! isReal(alpha))
         error("argument \"alpha\" must be type double");
@@ -132,6 +136,8 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
         error("argument \"outmat\" must be type double or NULL");
     if (! isLogical(debug))
         error("argument \"debug\" must be logical");
+    if (! isReal(scale))
+        error("argument \"scale\" must be type double");
 
     if (! isMatrix(basis))
         error("argument \"basis\" must be matrix");
@@ -139,6 +145,8 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
         error("argument \"amat\" must be matrix");
     if (! (isNull(outmat) | isMatrix(outmat)))
         error("argument \"outmat\" must be matrix or NULL");
+    if (! isMatrix(scale))
+        error("argument \"scale\" must be matrix");
 
     int dim_oc = LENGTH(alpha);
     int dim_nc = LENGTH(initial);
@@ -161,6 +169,10 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
         error("length(bvec) != nrow(amat)");
     if (LENGTH(debug) != 1)
         error("argument \"debug\" must be scalar");
+    if (nrows(scale) != dim_nc)
+        error("nrow(scale) != length(initial)");
+    if (ncols(scale) != dim_nc)
+        error("ncol(scale) != length(initial)");
 
     int dim_out = dim_oc;
     if (! isNull(outmat)) {
@@ -183,6 +195,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     double *dbl_star_outmat = 0;
     if (has_outmat)
         dbl_star_outmat = REAL(outmat);
+    double *dbl_star_scale = REAL(scale);
 
     if (int_nbatch <= 0)
         error("argument \"nbatch\" must be positive");
@@ -199,6 +212,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     check_finite(dbl_star_bvec, ncons, "bvec");
     if (has_outmat)
         check_finite(dbl_star_outmat, dim_out * dim_oc, "outmat");
+    check_finite(dbl_star_scale, dim_nc * dim_nc, "scale");
 
     double *state = (double *) R_alloc(dim_nc, sizeof(double));
     double *proposal = (double *) R_alloc(dim_nc, sizeof(double));
@@ -208,6 +222,8 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     memcpy(state, dbl_star_initial, dim_nc * sizeof(double));
     logh_setup(dbl_star_alpha, dbl_star_origin, dbl_star_basis, dim_oc, dim_nc);
     double current_log_dens = logh(state);
+
+    proposal_setup(dbl_star_amat, dbl_star_bvec, dim_nc, ncons, dbl_star_scale);
 
     out_setup(dbl_star_origin, dbl_star_basis, dbl_star_outmat, dim_oc, dim_nc,
         dim_out, has_outmat);
@@ -287,8 +303,7 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
                 double smin = R_NaReal;
                 double z[dim_nc];
 
-                propose(state, proposal, dbl_star_amat, dbl_star_bvec,
-                    dim_nc, ncons, z, &smax, &smin, &u1);
+                propose(state, proposal, z, &smax, &smin, &u1);
 
                 proposal_log_dens = logh(proposal);
 
@@ -354,25 +369,54 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
     return result;
 }
 
-static void propose(double *x, double *proposal, double *a, double *b, int d,
-    int n, double *z, double *smax_out, double *smin_out, double *u_out)
+static int prop_dim_nc = 0;
+static int prop_ncons = 0;
+static double *prop_amat = 0;
+static double *prop_bvec = 0;
+static double *prop_scale = 0;
+static double *prop_z = 0;
+
+static void proposal_setup(double *amat, double *bvec, int dim_nc,
+    int ncons, double *scale)
 {
-    for (int i = 0; i < d; i++) {
+    prop_dim_nc = dim_nc;
+    prop_ncons = ncons;
+    prop_amat = (double *) R_alloc(ncons * dim_nc, sizeof(double));
+    prop_bvec = (double *) R_alloc(ncons, sizeof(double));
+    prop_scale = (double *) R_alloc(dim_nc * dim_nc, sizeof(double));
+    prop_z = (double *) R_alloc(dim_nc, sizeof(double));
+
+    memcpy(prop_amat, amat, ncons * dim_nc * sizeof(double));
+    memcpy(prop_bvec, bvec, ncons * sizeof(double));
+    memcpy(prop_scale, scale, dim_nc * dim_nc * sizeof(double));
+}
+
+static void propose(double *x, double *proposal,
+    double *z, double *smax_out, double *smin_out, double *u_out)
+{
+    for (int i = 0; i < prop_dim_nc; i++) {
         z[i] = norm_rand();
     }
+
+    // prop_z := prop_scale * z
+    double one = 1.0;
+    double zero = 0.0;
+    int ione = 1;
+    F77_CALL(dgemv)("n", &prop_dim_nc, &prop_dim_nc, &one, prop_scale,
+        &prop_dim_nc, z, &ione, &zero, prop_z, &ione);
 
     double smax = R_PosInf;
     double smin = R_NegInf;
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < prop_ncons; i++) {
 
         double ax = 0.0;
         double az = 0.0;
-        for (int j = 0; j < d; j++) {
-            ax += a[i + j * n] * x[j];
-            az += a[i + j * n] * z[j];
+        for (int j = 0; j < prop_dim_nc; j++) {
+            ax += prop_amat[i + j * prop_ncons] * x[j];
+            az += prop_amat[i + j * prop_ncons] * prop_z[j];
         }
-        double bound = (b[i] - ax) / az;
+        double bound = (prop_bvec[i] - ax) / az;
         if (az > 0 && bound < smax)
                 smax = bound;
         if (az < 0 && bound > smin)
@@ -381,8 +425,8 @@ static void propose(double *x, double *proposal, double *a, double *b, int d,
 
     double u = unif_rand();
 
-    for (int i = 0; i < d; i++)
-        proposal[i] = x[i] + (u * smin + (1.0 - u) * smax) * z[i];
+    for (int i = 0; i < prop_dim_nc; i++)
+        proposal[i] = x[i] + (u * smin + (1.0 - u) * smax) * prop_z[i];
 
     *smax_out = smax;
     *smin_out = smin;

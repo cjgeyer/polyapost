@@ -13,7 +13,8 @@ void probvect1(double *p, int *matsize, double *a2, int *nrow, double *b2,
 #include <Rinternals.h>
 
 SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
-    SEXP origin, SEXP basis, SEXP amat, SEXP bvec, SEXP outmat, SEXP debug);
+    SEXP origin, SEXP basis, SEXP amat, SEXP bvec, SEXP outmat, SEXP debug,
+    SEXP scale);
 
 #endif /* POLYAPOST_H */
 
