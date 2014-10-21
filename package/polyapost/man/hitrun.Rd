@@ -23,10 +23,10 @@ hitrun(alpha, \dots)
   \item{nbatch}{the number of batches.}
   \item{blen}{the length of batches.}
   \item{nspac}{the spacing of iterations that contribute to batches.}
-  \item{a1}{a numeric matrix. See details.}
-  \item{b1}{a numeric vector. See details.}
-  \item{a2}{a numeric matrix. See details.}
-  \item{b2}{a numeric vector. See details.}
+  \item{a1}{a numeric or character matrix or \code{NULL}. See details.}
+  \item{b1}{a numeric or character vector or \code{NULL}. See details.}
+  \item{a2}{a numeric or character matrix or \code{NULL}. See details.}
+  \item{b2}{a numeric or character vector or \code{NULL}. See details.}
   \item{outmat}{a numeric matrix, which controls the output.  If \code{p}
       is the constrained Dirichlet random vector being simulated, then
       \code{outmat \%*\% p} is the functional of the state that is averaged.
@@ -47,6 +47,14 @@ subset of the unit simplex consisting of \code{x} satisfying
     a1 \%*\% x <= b1
     a2 \%*\% x == b2
 }
+Hence if \code{a1} is \code{NULL} then so must be \code{b1}, and vice versa,
+and similarly for \code{a2} and \code{b2}.
+
+If any of \code{a1}, \code{b1}, \code{a2}, \code{b2} are of type
+\code{"character"}, then they must be valid GMP (GNU multiple precision)
+rational, that is, if run through \code{\link{q2q}}, they do not
+give an error.  This allows constraints to be represented exactly
+(using infinite precision rational arithmetic) if so desired.
 }
 \value{
   an object of class \code{"hitrun"},
@@ -76,6 +84,7 @@ Performance of the Gibbs, hit-and-run, and Metropolis samplers.
 \emph{Journal of Computational and Graphical Statistics}, \bold{2}, 251--272.
 
 }
+\seealso{\code{\link{ConvertGMP}} and \code{\link{ArithmeticGMP}}}
 \examples{
 # Bayesian inference for discrete probability distribution on {1, ..., d}
 # state is probability vector p of length d

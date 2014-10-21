@@ -8,6 +8,9 @@
 # a1 and b1 can be missing
 # a2 and b2 can be missing
 
+# this file is now revised to follow the design document hitrun2.Rnw
+# (in the devel directory) rather than the older hitrun.Rnw
+
 hitrun <- function(alpha, ...)
     UseMethod("hitrun")
 
@@ -45,23 +48,51 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     stopifnot(alpha > 0)
     stopifnot(is.null(a1) == is.null(b1))
     if (! is.null(a1)) {
-        stopifnot(is.numeric(a1))
-        stopifnot(is.finite(a1))
+        stopifnot(is.numeric(a1) || is.character(a1))
         stopifnot(is.matrix(a1))
-        stopifnot(is.numeric(b1))
-        stopifnot(is.finite(b1))
+        if (is.numeric(a1)) {
+            stopifnot(is.finite(a1))
+            a1 <- d2q(a1)
+        } else {
+            a1 <- try(q2q(a1))
+            if (inherits(a1, "try-error"))
+            stop("'a1' character but not GMP rational")
+        }
+        stopifnot(is.numeric(b1) || is.character(b1))
         stopifnot(is.vector(b1))
+        if (is.numeric(b1)) {
+            stopifnot(is.finite(b1))
+            b1 <- d2q(b1)
+        } else {
+            b1 <- try(q2q(b1))
+            if (inherits(b1, "try-error"))
+            stop("'b1' character but not GMP rational")
+        }
         stopifnot(nrow(a1) == length(b1))
         stopifnot(ncol(a1) == length(alpha))
     }
     stopifnot(is.null(a2) == is.null(b2))
     if (! is.null(a2)) {
-        stopifnot(is.numeric(a2))
-        stopifnot(is.finite(a2))
+        stopifnot(is.numeric(a2) || is.character(a2))
         stopifnot(is.matrix(a2))
-        stopifnot(is.numeric(b2))
-        stopifnot(is.finite(b2))
+        if (is.numeric(a2)) {
+            stopifnot(is.finite(a2))
+            a2 <- d2q(a2)
+        } else {
+            a2 <- try(q2q(a2))
+            if (inherits(a2, "try-error"))
+            stop("'a2' character but not GMP rational")
+        }
+        stopifnot(is.numeric(b2) || is.character(b2))
         stopifnot(is.vector(b2))
+        if (is.numeric(b2)) {
+            stopifnot(is.finite(b2))
+            b2 <- d2q(b2)
+        } else {
+            b2 <- try(q2q(b2))
+            if (inherits(b2, "try-error"))
+            stop("'b2' character but not GMP rational")
+        }
         stopifnot(nrow(a2) == length(b2))
         stopifnot(ncol(a2) == length(alpha))
     }
@@ -89,14 +120,13 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     stopifnot(length(debug) == 1)
 
     d <- length(alpha)
-    # add unit simpled constraints
-    a1 <- rbind(a1, - diag(d))
-    b1 <- c(b1, rep(0, d))
-    a2 <- rbind(a2, rep(1, d))
-    b2 <- c(b2, 1)
+    # add unit simplex constraints
+    a1 <- rbind(a1, d2q(- diag(d)))
+    b1 <- c(b1, rep("0", d))
+    a2 <- rbind(a2, rep("1", d))
+    b2 <- c(b2, "1")
 
     hrep1 <- makeH(a1, b1, a2, b2)
-    hrep1 <- d2q(hrep1)
     hrep2 <- redundant(hrep1)$output
     hrep3 <- hrep2[hrep2[ , 1] == "1", , drop = FALSE]
     hrep4 <- hrep2[hrep2[ , 1] == "0", , drop = FALSE]
@@ -108,6 +138,8 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
         stop("unexpected V-representation of affine hull of constraint set")
     if (sum(is.point) != 1)
         stop("unexpected V-representation of affine hull of constraint set")
+    if (sum(is.line) == 0)
+        stop("constraint set consists of single point or is empty")
     if (sum(is.line) != ncol(a1) - nrow(hrep3))
         stop("unexpected V-representation of affine hull of constraint set")
 
@@ -133,15 +165,29 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     # fred defined in the previous comment
 
     hrep5 <- cbind("0", bvec, qneg(amat))
-    vrep5 <- scdd(hrep5, representation = "H")$output
-    if (nrow(vrep5) == 0)
-        stop("empty constraint set")
-    is.point <- vrep5[ , 1] == "0" & vrep5[ , 2] == "1"
-    if (! all(is.point))
-        stop("unbounded constraint set (can't happen)")
-    v <- vrep5[ , - c(1, 2), drop = FALSE]
-    rip <- apply(v, 2, qsum)
-    rip <- qdq(rip, rep(as.character(nrow(v)), length(rip)))
+    hrep5 <- cbind("0", bvec, qneg(amat))
+    grad5 <- rep("0", ncol(amat))
+    lout <- lpcdd(hrep5, grad5)
+    if (lout$solution.type != "Optimal")
+        stop("constraint set is empty (constraints are inconsistent)")
+    x <- lout$primal.solution
+    slack <- qmq(bvec, as.vector(qmatmult(amat, cbind(x))))
+    x <- rbind(x)
+    slack <- rbind(slack)
+    repeat {
+        foo <- qsign(apply(slack, 2, qsum))
+        if (all(foo > 0)) break
+        grad <- qneg(apply(amat[foo == 0, ], 2, qsum))
+        lout <- lpcdd(hrep5, grad, minimize = FALSE)
+        if (lout$solution.type != "Optimal")
+            stop("unforseen error in finding initial point")
+        xtoo <- lout$primal.solution
+        stoo <- qmq(bvec, as.vector(qmatmult(amat, cbind(xtoo))))
+        x <- rbind(x, xtoo)
+        slack <- rbind(slack, stoo)
+    }
+
+    rip <- qdq(apply(x, 2, qsum), rep(nrow(x), ncol(x)))
 
     # rip is relative interior point of constraint set in NC
 

@@ -346,7 +346,7 @@ vertices has all constraints slack at that point.
 <<lp-too-too>>=
 repeat {
     foo <- qsign(apply(alls, 2, qsum))
-    if (all(foo) > 0) break
+    if (all(foo > 0)) break
     grad <- qneg(apply(amat[foo == 0, ], 2, qsum))
     lout <- lpcdd(hrep5, grad, minimize = FALSE)
     stopifnot(lout$solution.type == "Optimal")
