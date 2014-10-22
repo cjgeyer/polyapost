@@ -127,9 +127,11 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     b2 <- c(b2, "1")
 
     hrep1 <- makeH(a1, b1, a2, b2)
-    hrep2 <- redundant(hrep1)$output
-    hrep3 <- hrep2[hrep2[ , 1] == "1", , drop = FALSE]
-    hrep4 <- hrep2[hrep2[ , 1] == "0", , drop = FALSE]
+    linout <- linearity(hrep1)
+    hrep1[linout, 1] <- "1"
+
+    hrep3 <- hrep1[hrep1[ , 1] == "1", , drop = FALSE]
+    hrep4 <- hrep1[hrep1[ , 1] == "0", , drop = FALSE]
 
     vrep3 <- scdd(hrep3, representation = "H")$output
     is.line <- vrep3[ , 1] == "1" & vrep3[ , 2] == "0"

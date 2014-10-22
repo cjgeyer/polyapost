@@ -74,7 +74,7 @@ constraint that the probabilities sum to one.
 In case $d$ is odd, so $(d + 1) / 2$ is an integer, these two
 constraints can be satisfied with inequality, so stay inequalities.
 We can always specify them as inequality constraints and leave it to
-the \texttt{redundant} function to figure out when they must be equality
+the \texttt{linearity} function to figure out when they must be equality
 constraints.
 
 And suppose we want the median absolute deviation to be at least
@@ -128,37 +128,36 @@ The first column is a code: 1 indicates an equality constraint,
 side vector.  The rest of each row is the negative of some row of $A_1$
 or $A_2$.
 
-\subsection{Eliminating Redundant Constraints}
+\subsection{Implied Equality Constraints}
 
 We now do an operation that is needed for this example when $d$ is even
 but not when $d$ is odd.  It is needed if we allow the user to input
 general constraint matrices and vectors.
-This is elimination of redundant constraints from the H-representation.
+This is determination of the putative inequality constraints that actually
+hold with equality at all points in the constraint set.
 <<hrep-too>>=
-rout <- redundant(d2q(hrep1))
-hrep2 <- rout$output
-identical(rout$new.position, 1:nrow(hrep1))
+lout <- linearity(d2q(hrep1))
+is.equality <- hrep1[ , 1] == 1
+is.equality[lout] <- TRUE
+is.equality
 @
-If the last statement says \texttt{TRUE}, then this operation is a no op
-(does nothing); otherwise changes have been made.
-<<hrep-too-show>>=
-hrep2
-@
-The reason why this matrix now has character-valued components is that
-we have switched to exact rational arithmetic (following the advice
-of the R package \texttt{rcdd}) so our results are exact.  We stay in
-exact rational arithmetic until further notice.
+The constraints that hold with equality (both the ones that were given
+as equality constraints and the ones that were given as inequality constraints
+but the \texttt{linearity} function discovered actually hold with equality)
+are the ones with the corresponding components of \texttt{is.equality} equal
+to \texttt{TRUE}.
 
-We see that where we formerly had \Sexpr{nrow(hrep1)} constraints in all
-we now have \Sexpr{nrow(hrep2)}.
-The former inequality constraints that have been found to actually hold
-with equality are
-<<hrep-too-show-too>>=
-rout$implied.linearity
-@
-and the dropped constraints were the former constraints numbered
-<<hrep-too-show-too-too>>=
-seq(along = rout$new.position)[rout$new.position == 0]
+Note the operation \texttt{d2q} which provides the H-representation as
+GMP (GNU multiple precision) rational values, and makes the \texttt{linearity}
+function use infinite precision rational arithmetic.  Hence our computation is
+exact.  We use exact rational arithmetic until further notice.
+
+We make a new H-representation with the implied equality constraints
+changed to explicit equality constraints.
+<<hrep2>>=
+hrep2 <- d2q(hrep1)
+hrep2[is.equality , 1] <- "1"
+hrep2
 @
 
 Now we need to deal with equality constraints and inequality constraints
@@ -185,13 +184,14 @@ is.line <- vrep3[ , 1] == "1" & vrep3[ , 2] == "0"
 is.point <- vrep3[ , 1] == "0" & vrep3[ , 2] == "1"
 all(is.point | is.line)
 sum(is.point) == 1
-sum(is.line) == d - nrow(hrep3)
 @
 The codes in the first and second columns are 0 and 1 (in that order) for
 points and 1 and 0 (in that order) for directions.  The affine hull of the
 convex polytope
 is the vector subspace spanned by the directions
-translated by the point.
+translated by the point.  We should have one point and all the rest lines
+(directions).  (There are two other codes --- 0 and 0 for rays and 1 and 1
+for affine generators --- but we should never have either of them.)
 <<coordinates>>=
 foo <- vrep3[ , - c(1, 2), drop = FALSE]
 origin <- foo[is.point, ]
@@ -225,6 +225,15 @@ bvec <- hrep4[ , 2]
 bvec <- qmq(bvec, qmatmult(amat, cbind(origin)))
 amat <- qmatmult(amat, basis)
 @
+
+Some of these constraints may be redundant --- implied by some of the
+others --- but that is o.~k.  Eliminating redundant constraints is more
+trouble than it is worth.  It can be exceedingly time consuming to eliminate
+them.  Having redundant inequality constraints that are truly inequality
+constraints (which has been assured by our use of the \texttt{linearity}
+function), does not affect the correctness of the hit-and-run algorithm.
+The redundant constraints have no effect, and checking them only slows
+down the hit-and-run algorithm by a little bit.
 
 \subsection{Log Unnormalized Density Function in New Coordinates}
 
