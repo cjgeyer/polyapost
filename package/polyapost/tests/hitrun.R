@@ -67,20 +67,13 @@ amat <- qmatmult(amat, basis)
 identical(q2d(amat), hout$amat)
 identical(q2d(bvec), hout$bvec)
 
-hrep5 <- makeH(a1 = amat, b1 = bvec)
-vrep5 <- scdd(hrep5)$output
-is.point <- vrep5[ , 1] == "0" & vrep5[ , 2] == "1"
-all(is.point)
-v <- vrep5[ , - c(1, 2)]
-x <- apply(v, 2, qsum)
-x <- qdq(x, rep(as.character(nrow(v)), length(x)))
-identical(q2d(x), hout$initial)
 
 origin <- q2d(origin)
 basis <- q2d(basis)
 amat <- q2d(amat)
 bvec <- q2d(bvec)
-initial <- q2d(x)
+initial <- hout$initial
+all(qsign(qmq(bvec, as.vector(qmatmult(amat, cbind(initial))))) > 0)
 
 # check bounds
 mys1 <- rep(Inf, nrow(hout$current))
