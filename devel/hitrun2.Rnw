@@ -283,98 +283,47 @@ new coordinates.  And this is the operation that does not scale and
 can take hours, days, arbitrarily long, really, for high-dimensional
 problems.
 
-So we use a different strategy, linear programming.
+So we use a different strategy, linear programming.  To do this we solve
+the following linear program
+\begin{align*}
+    \text{\normalfont maximize} & \quad e
+    \\
+    \text{\normalfont subject to} & \quad A x + e \le b
+\end{align*}
+in which the state is the vector $(x, e)$ where $x$ is the state of the
+given problem (in new coordinates) and $e$ is another scalar variable,
+and in which the inequality is interpreted coordinatewise.
+Given that we know that none of the inequality constraints is an implied
+equality constraint it must be that there exist points $x$ such that
+$A x < b$ (where, again, inequality is interpreted coordinatewise)
+holds hence $A x + e \le b$ holds for some strictly positive $e$,
+assuming that the constraint set is actually nonempty.
+The linear program then finds $x$ and $e$ such that $e$ is as large as
+possible, thus finding the relative interior point that is farthest from
+the boundary.
 <<lp>>=
-hrep5 <- cbind("0", bvec, qneg(amat))
-grad5 <- rep("0", ncol(amat))
-lout <- lpcdd(hrep5, grad5)
+hrep5 <- cbind("0", bvec, qneg(amat), "-1")
+grad5 <- c(rep("0", ncol(amat)), "1")
+lout <- lpcdd(hrep5, grad5, minimize = FALSE)
 names(lout)
 lout$solution.type
+lout$optimal.value
 @
-If the last statement prints \verb@"Optimal"@, then we have found a point
-in the polytope (in new coordinates).
-If the last statement prints \verb@"Inconsistent"@, then the polytope is
+If \verb@lout$solution.type@ is \verb@"Optimal"@
+and \verb@lout$optimal.value@ is a positive number, then we have found
+a point in the relative interior of the convex polytope (in new coordinates).
+Otherwise the convex polytope is
 the empty set (the constraints are inconsistent), in which case we have to
 give an error message (the user has specified the problem incorrectly).
 
 When we have an optimal solution (a point in the polytope), it is
 <<lp-point>>=
 x <- lout$primal.solution
+x <- x[- length(x)]
 x
 @
 (a point in new coordinates).
 
-Glen Meeden expressed concern about starting points like this that are
-on the boundary of the polytope.  It can take the hit-and-run sampler
-a long time to ``get started'' because when at a vertex with a narrow
-(solid) angle, it can take a long time to ``propose'' a direction in
-which the sampler can actually move.
-
-So where are we (in new coordinates)?  We say an inequality constraint is
-\emph{active} at a point $x$ if it is satisfied with equality at $x$,
-and we say an inequality constraint is
-\emph{slack} at a point $x$ if it is satisfied but not with equality at $x$.
-What inequality constraints are active at $x$?
-<<where>>=
-slack <- qmq(bvec, as.vector(qmatmult(amat, cbind(x))))
-slack
-@
-At the point $x$, we have \Sexpr{sum(slack == "0")} constraints active.
-We want to find a relative interior point where no constraints
-are active (all are slack).
-
-Let us find a new point that maximizes the total slackness of the constraints
-that are active at the $x$ already found.
-<<lp-too>>=
-grad <- qneg(apply(amat[slack == "0", ], 2, qsum))
-lout <- lpcdd(hrep5, grad, minimize = FALSE)
-lout$solution.type
-x1 <- lout$primal.solution
-allx <- rbind(x, x1)
-slack1 <- qmq(bvec, as.vector(qmatmult(amat, cbind(x1))))
-alls <- rbind(slack, slack1)
-allx
-alls
-@
-So now we have found two points in the convex polytope (in new coordinates),
-and, because of convexity, we have actually found an infinite number of points
-(every point on the line segment connecting the two points we have found).
-Since inequality constraints that are slack for either of the endpoints
-are slack for all points in the relative interior of the line segment
-connecting them, we now have found points (those relative interior points)
-at which all but \Sexpr{sum(qsign(apply(alls, 2, qsum)) == 0)} inequality
-constraints are slack.
-
-We continue the process, in each iteration finding another point at which
-some constraint (or constraints) that were not slack for any of the points
-found so far is (or are) slack for the new point.  Eventually, we find
-points such that no constraint is active for all the points.  Then any
-point in the relative interior of the simplex having those points as
-vertices has all constraints slack at that point.
-
-<<lp-too-too>>=
-repeat {
-    foo <- qsign(apply(alls, 2, qsum))
-    if (all(foo > 0)) break
-    grad <- qneg(apply(amat[foo == 0, ], 2, qsum))
-    lout <- lpcdd(hrep5, grad, minimize = FALSE)
-    stopifnot(lout$solution.type == "Optimal")
-    xtoo <- lout$primal.solution
-    stoo <- qmq(bvec, as.vector(qmatmult(amat, cbind(xtoo))))
-    allx <- rbind(allx, xtoo)
-    alls <- rbind(alls, stoo)
-    dimnames(allx) <- NULL
-    dimnames(alls) <- NULL
-}
-allx
-alls
-@
-Now we construct a convex combination of the \Sexpr{nrow(allx)} points
-we have found
-<<relative-interior>>=
-x <- qdq(apply(allx, 2, qsum), rep(nrow(allx), ncol(allx)))
-x
-@
 Let us check that this point does satisfy the constraints
 <<relative-interior-check>>=
 qmq(bvec, as.vector(qmatmult(amat, cbind(x))))

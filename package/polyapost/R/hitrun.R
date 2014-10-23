@@ -172,34 +172,14 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
 
     start.time.rip <- proc.time()
 
-    hrep5 <- cbind("0", bvec, qneg(amat))
-    hrep5 <- cbind("0", bvec, qneg(amat))
-    grad5 <- rep("0", ncol(amat))
-    lout <- lpcdd(hrep5, grad5)
-    if (lout$solution.type != "Optimal")
+    hrep5 <- cbind("0", bvec, qneg(amat), "-1")
+    grad5 <- c(rep("0", ncol(amat)), "1")
+    lout <- lpcdd(hrep5, grad5, minimize = FALSE)
+    if (lout$solution.type != "Optimal" || qsign(lout$optimal.value) <= 0)
         stop("constraint set is empty (constraints are inconsistent)")
     x <- lout$primal.solution
-    slack <- qmq(bvec, as.vector(qmatmult(amat, cbind(x))))
-    x <- rbind(x)
-    slack <- rbind(slack)
-    lpcdd.count <- 1
-    repeat {
-        foo <- qsign(apply(slack, 2, qsum))
-        if (all(foo > 0)) break
-        grad <- qneg(apply(amat[foo == 0, , drop = FALSE], 2, qsum))
-        lout <- lpcdd(hrep5, grad, minimize = FALSE)
-        lpcdd.count <- lpcdd.count + 1
-        if (lout$solution.type != "Optimal")
-            stop("unforseen error in finding initial point")
-        xtoo <- lout$primal.solution
-        stoo <- qmq(bvec, as.vector(qmatmult(amat, cbind(xtoo))))
-        x <- rbind(x, xtoo)
-        slack <- rbind(slack, stoo)
-    }
-
-    rip <- qdq(apply(x, 2, qsum), rep(nrow(x), ncol(x)))
-
     # rip is relative interior point of constraint set in NC
+    rip <- x[- length(x)]
 
     stop.time.rip <- proc.time()
 
@@ -221,8 +201,7 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
         out$b2 <- b2
     }
     out$setup.time <- list(linearity = lin.time, basis = basis.time,
-        relative.interior.point = stop.time.rip - start.time.rip,
-        linear.programming.count = lpcdd.count)
+        relative.interior.point = stop.time.rip - start.time.rip)
     class(out) <- "hitrun"
     return(out)
 }
