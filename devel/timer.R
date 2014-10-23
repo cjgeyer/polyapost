@@ -1,7 +1,7 @@
 
  library(polyapost, lib.loc = "../package/polyapost.Rcheck")
 
- d <- 200
+ d <- 500
  x <- 1:d
  # equality constraints
  #     mean equal to (d + 1) / 2, that is, sum(x * p) = (d + 1) / 2
@@ -21,4 +21,5 @@
      a1 = a1, b1 = b1, a2 = a2, b2 = b2)
  # Rprof(NULL)
  out$time
+ out$setup.time
 

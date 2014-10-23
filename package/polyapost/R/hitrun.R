@@ -127,13 +127,17 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     b2 <- c(b2, "1")
 
     hrep1 <- makeH(a1, b1, a2, b2)
-    linout <- linearity(hrep1)
+    lin.time <- system.time(
+        linout <- linearity(hrep1)
+    )
     hrep1[linout, 1] <- "1"
 
     hrep3 <- hrep1[hrep1[ , 1] == "1", , drop = FALSE]
     hrep4 <- hrep1[hrep1[ , 1] == "0", , drop = FALSE]
 
-    vrep3 <- scdd(hrep3, representation = "H")$output
+    basis.time <- system.time(
+        vrep3 <- scdd(hrep3, representation = "H")$output
+    )
     is.line <- vrep3[ , 1] == "1" & vrep3[ , 2] == "0"
     is.point <- vrep3[ , 1] == "0" & vrep3[ , 2] == "1"
     if (! all(is.point | is.line))
@@ -166,6 +170,8 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     # mapped one-to-one onto the constraint set in OC by the function
     # fred defined in the previous comment
 
+    start.time.rip <- proc.time()
+
     hrep5 <- cbind("0", bvec, qneg(amat))
     hrep5 <- cbind("0", bvec, qneg(amat))
     grad5 <- rep("0", ncol(amat))
@@ -176,11 +182,13 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     slack <- qmq(bvec, as.vector(qmatmult(amat, cbind(x))))
     x <- rbind(x)
     slack <- rbind(slack)
+    lpcdd.count <- 1
     repeat {
         foo <- qsign(apply(slack, 2, qsum))
         if (all(foo > 0)) break
-        grad <- qneg(apply(amat[foo == 0, ], 2, qsum))
+        grad <- qneg(apply(amat[foo == 0, , drop = FALSE], 2, qsum))
         lout <- lpcdd(hrep5, grad, minimize = FALSE)
+        lpcdd.count <- lpcdd.count + 1
         if (lout$solution.type != "Optimal")
             stop("unforseen error in finding initial point")
         xtoo <- lout$primal.solution
@@ -192,6 +200,8 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     rip <- qdq(apply(x, 2, qsum), rep(nrow(x), ncol(x)))
 
     # rip is relative interior point of constraint set in NC
+
+    stop.time.rip <- proc.time()
 
     origin <- q2d(origin)
     basis <- q2d(basis)
@@ -210,6 +220,9 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
         out$a2 <- a2
         out$b2 <- b2
     }
+    out$setup.time <- list(linearity = lin.time, basis = basis.time,
+        relative.interior.point = stop.time.rip - start.time.rip,
+        linear.programming.count = lpcdd.count)
     class(out) <- "hitrun"
     return(out)
 }
