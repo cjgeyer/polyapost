@@ -65,7 +65,7 @@ give an error.  This allows constraints to be represented exactly
   \item{final}{final state of Markov chain.}
   \item{initial.seed}{value of \code{.Random.seed} before the run.}
   \item{final.seed}{value of \code{.Random.seed} after the run.}
-  \item{time}{running time of Markov chain from \code{system.time()}.}
+  \item{time}{running time from \code{system.time()}.}
   \item{alpha}{the Dirichlet parameter vector.}
   \item{nbatch}{the argument \code{nbatch} or \code{obj$nbatch}.}
   \item{blen}{the argument \code{blen} or \code{obj$blen}.}

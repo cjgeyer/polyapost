@@ -135,6 +135,17 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     hrep3 <- hrep1[hrep1[ , 1] == "1", , drop = FALSE]
     hrep4 <- hrep1[hrep1[ , 1] == "0", , drop = FALSE]
 
+    # check to see that no variables are constrained equal to zero
+    a3 <- hrep3[ , - c(1, 2), drop = FALSE]
+    b3 <- hrep3[ , 2]
+    solo <- apply(a3, 1, function(x) sum(x != "0") == 1)
+    if (any(b3[solo] == "0")) {
+        molo <- a3[solo, , drop = FALSE]
+        nolo <- apply(molo, 1, function(x) seq(along = x)[x != "0"])
+        colo <- paste(nolo, collapse = ", ")
+        stop(paste("variable(s)", colo, "constrained to be exactly zero"))
+    }
+
     basis.time <- system.time(
         vrep3 <- scdd(hrep3, representation = "H")$output
     )
@@ -146,8 +157,6 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
         stop("unexpected V-representation of affine hull of constraint set")
     if (sum(is.line) == 0)
         stop("constraint set consists of single point or is empty")
-    if (sum(is.line) != ncol(a1) - nrow(hrep3))
-        stop("unexpected V-representation of affine hull of constraint set")
 
     foo <- vrep3[ , - c(1, 2), drop = FALSE]
     origin <- foo[is.point, ]
@@ -200,8 +209,13 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
         out$a2 <- a2
         out$b2 <- b2
     }
-    out$setup.time <- list(linearity = lin.time, basis = basis.time,
-        relative.interior.point = stop.time.rip - start.time.rip)
+    foo <- list(linearity = lin.time, basis = basis.time,
+        relative.interior.point = stop.time.rip - start.time.rip,
+        mcmc = out$time)
+    bar <- foo[[1]]
+    for (i in 2:length(foo)) bar <- bar + foo[[i]]
+    out$split.time <- foo
+    out$time <- bar
     class(out) <- "hitrun"
     return(out)
 }
