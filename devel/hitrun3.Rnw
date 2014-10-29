@@ -33,14 +33,30 @@ but has one issue still not fixed.
 This function does not work for high-dimensional problems
 because it uses the R function \texttt{linearity} in the \texttt{rcdd} package
 to discover which constraints that are given as inequality constraints are
-actually equality constraints (that is, they hold with equality for all points
-in the constraint set), and \texttt{linearity} does one linear programming
+actually equality constraints (that is, they actually hold with equality
+for all points in the constraint set); we will call these \emph{implied
+equality constraints} and we will call the constraints that are actually
+given (by the user) as equality constraints \emph{explicit equality
+constraints}.  So the problem \texttt{linearity} solves is the problem
+of finding the implied equality constraints.
+
+The \texttt{linearity} function does this by doing one linear programming
 problem for every inequality constraint (including the constraints that the
-variables be nonnegative).  Call this the implied equality constraint problem.
-In general, this step cannot be skipped because users may, either accidently
+variables be nonnegative).  This does not scale well.  One example using
+1000 variables took 3 days to do.
+
+In general, this step cannot be skipped because users may, either accidentally
 or on purpose, specify constraints with implied equality constraints.  There
 is, in general, no way for users to know whether or not there are implied
 equality constraints in a complicated problem.
+
+And we must know the implied equality constraints because the equality
+constraints (both implied and explicit) determine the dimension of the
+constraint set, and we must know the dimension of the constraint set
+in order to do a change of variable that gives a full-dimensional problem
+for the hit-and-run algorithm to simulate.  The hit-and-run algorithm
+cannot do a problem that is not full-dimensional.  It cannot somehow
+discover the dimension.
 
 However, if the user just happens to supply a specification of the constraint
 set that has no implied equality constraints (only explicit equality
@@ -52,11 +68,13 @@ run used in previous versions of this document and in version 1.3-1 of the
 \texttt{polyapost} package (See Section~\ref{sec:initial} below).
 The constraint set is the set of vectors $y$ satisfying the linear equality
 and inequality constraints
-\begin{align*}
+\begin{equation} \label{eq:constraints}
+\begin{split}
     A_1 y & \le b_1
     \\
     A_2 y & = b_2
-\end{align*}
+\end{split}
+\end{equation}
 where equality and inequality operate coordinatewise as in R.  Here we consider
 the inequality constraints to include the constraints that all components of
 $y$ are nonnegative and the equality constraints to include the constraint
@@ -75,13 +93,15 @@ constraints actually hold strictly
 and we can find such a point, if it exists, by solving the following linear
 program, the state variables of which are the components of $y$ and an
 additional variable $e$
-\begin{align*}
+\begin{equation} \label{eq:linprog-one}
+\begin{split}
    \text{\normalfont maximize} & \quad e
    \\
    \text{\normalfont subject to} & \quad A_1 x + e \le b_1
    \\
                                  & \quad A_2 x \le b_2
-\end{align*}
+\end{split}
+\end{equation}
 If the solution exists and the optimal value is strictly greater than zero,
 then the point $y$ does satisfy all the inequality constraints with strict
 inequality and there can be no implied equality constraints.
@@ -89,26 +109,14 @@ In that case, the \texttt{linearity} step is skipped.  Otherwise, it must be
 done.
 
 This document illustrates how the implied equality constraint problem is
-solved
-
-\begin{center} \LARGE REVISED DOWN TO HERE \end{center}
-
-users may specify the problem so that   too much
-computational geometry, in particular, in finding the vertices of the support
-of the distribution (a convex polytope) using the R function \texttt{scdd}
-in the R package \texttt{rcdd}.  This operation is scaling-hostile,
-because the number of vertices of a polytope
-can be exponential in the dimension (a hypercube of dimension $d$, for example, 
-has $2^d$ vertices).  Thus we need to redesign the \texttt{hitrun} function
-so it avoids the operation of finding the vertices.
+solved using the linear program described above.  For completeness it describes
+all the procedures used by the \texttt{hitrun} function so it supersedes
+previous versions of this document.  It does not give all of the arguments
+for what it does that appeared in previous versions of this document.
 
 \section{Example}
 
-We do an example with
-<<d>>=
-d <- 10
-@
-dimensions.  Suppose we observe data having a probability distribution
+Suppose we observe data having a probability distribution
 on a state space having $d$ points, which we take to be
 \begin{equation} \label{eq:state-space}
    D = \{ 1, \ldots, d \}
@@ -125,24 +133,33 @@ $$
    \sum_{k = 1}^d k p_k = \frac{d + 1}{2}.
 $$
 The median constraint is two inequality constraints
-\begin{align*}
-   \sum_{k = 1}^{\lceil (d + 1) / 2 \rceil - 1} p_k \le \frac{1}{2}
+\begin{equation} \label{eq:median-two}
+\begin{split}
+   \sum_{k = 1}^{\lfloor (d + 1) / 2 \rfloor} p_k \ge \frac{1}{2}
    \\
-   \sum_{k = \lfloor (d + 1) / 2 \rfloor + 1}^d p_k \le \frac{1}{2}
-\end{align*}
+   \sum_{k = \lceil (d + 1) / 2 \rceil}^d p_k \ge \frac{1}{2}
+\end{split}
+\end{equation}
 In case $d$ is even, so $(d + 1) / 2$ is not an integer, these two
-constraints must actually be satisfied with equality because of the
+constraints must actually be satisfied with equality (hence are
+\emph{implied equality constraints}) because of the
 constraint that the probabilities sum to one.
 In case $d$ is odd, so $(d + 1) / 2$ is an integer, these two
-constraints can be satisfied with inequality, so stay inequalities.
-We can always specify them as inequality constraints and leave it to
-the \texttt{linearity} function to figure out when they must be equality
-constraints.
+constraints can be satisfied with strict inequality, so they
+are not equality constraints, either implied or explicit.
 
-And suppose we want the median absolute deviation to be at least
-<<r>>=
-r <- floor((d - 1) / 4)
-@
+We can specify them as inequality constraints and leave it to
+the \texttt{linearity} function to figure out when they are implied equality
+constraints.  But that is the step that does not scale.  In case $d$ is even,
+if we replace the two inequality constraints \eqref{eq:median-two}
+by the single inequality constraint
+\begin{equation} \label{eq:median-one}
+   \sum_{k = 1}^{\lfloor (d + 1) / 2 \rfloor} p_k = \frac{1}{2}
+\end{equation}
+(caution: this only works for the $d$ even case), then the computer
+can skip the call to the \texttt{linearity} function, and this will scale.
+
+Finally, suppose we want the median absolute deviation to be at least $r$.
 That gives us one inequality constraint
 $$
    \sum_{k = 1}^{\lfloor (d + 1) / 2 - r \rfloor} p_k
@@ -152,6 +169,12 @@ $$
    \frac{1}{2}
 $$
 
+Set $d$ and $r$
+<<d-and-r>>=
+d <- 10
+r <- floor((d - 1) / 4)
+@
+
 \section{Computational Geometry}
 
 Before we can simulate we must do a dimension reduction,
@@ -160,21 +183,17 @@ system in which the convex polytope has full dimension.
 To do that, we use functions
 in the R package \texttt{rcdd}, which does computational geometry.
 
-We express the inequality constraints as $A_1 p \le b_1$,
-where $A_1$ is a matrix, $b_1$ a vector,
-and the inequality operates componentwise,
-and we express the equality constraints as $A_2 p = b_2$, where $A_2$ is
-a matrix, $b_2$ a vector.
+We express the constraints as \eqref{eq:constraints}.
 <<cons>>=
-i <- 1:d
-a2 <- rbind(rep(1, d), i)
+y <- 1:d
+a2 <- rbind(rep(1, d), y)
 b2 <- c(1, (d + 1) / 2)
 a1 <- - diag(d)
 b1 <- rep(0, d)
-a1 <- rbind(a1, as.numeric(2 * i < d + 1), as.numeric(2 * i > d + 1))
+a1 <- rbind(a1, as.numeric(2 * y < d + 1), as.numeric(2 * y > d + 1))
 b1 <- c(b1, 1 / 2, 1 / 2)
-a1 <- rbind(a1, - as.numeric(i <= (d + 1) / 2 - r) -
-    as.numeric(i >= (d + 1) / 2 + r))
+a1 <- rbind(a1, - as.numeric(y <= (d + 1) / 2 - r) -
+    as.numeric(y >= (d + 1) / 2 + r))
 b1 <- c(b1, - 1 / 2)
 @
 Now we dump this into \texttt{rcdd}.  The constraint set is represented
@@ -190,22 +209,102 @@ The first column is a code: 1 indicates an equality constraint,
 side vector.  The rest of each row is the negative of some row of $A_1$
 or $A_2$.
 
-\subsection{Implied Equality Constraints}
+\subsection{Implied Equality Constraints I} \label{sec:avoid-linearity}
+
+Now we do the linear program \eqref{eq:linprog-one}.  First we modify
+the H-representation to have the additional variable $e$, which we
+tack onto the end of the state vector.
+<<hrep6>>=
+hrep6 <- cbind(hrep1, 0)
+hrep6[hrep6[ , 1] == 0, d + 3] <- (-1)
+@
+The reason for $- 1$ rather than $+ 1$ is the way H-representations work
+in \texttt{rcdd}.  Compare with the linear program in Section~\ref{sec:initial}
+below.  The complete explanation is in the help for the \texttt{lpcdd}
+function in the \texttt{rcdd} package.
+
+Then we make the gradient vector for the objective function
+<<grad6>>=
+grad6 <- c(rep(0, d), 1)
+@
+This says we want to maximize the dot product of \texttt{grad6} and the
+state vector, which is just the last component of the state vector, which
+is the variable $e$.
+
+Then we solve the linear program using exact rational arithmetic
+<<lp6>>=
+lout <- lpcdd(d2q(hrep6), d2q(grad6), minimize = FALSE)
+names(lout)
+lout$solution.type
+lout$optimal.value
+@
+If we did not have \verb@lout$solution.type@ equal to \texttt{"Optimal"},
+this would have indicated that the constraints were actually inconsistent
+(the constraint set is empty).  In this case, the \texttt{hitrun} function
+should terminate with an explanatory error.
+
+The fact that \verb@lout$optimal.value@ is zero (the reason it is a character
+string rather than numeric zero is because of the way that rational numbers
+are represented in the \texttt{rcdd} package) says that there are implied
+inequality constraints and we do have to use the linearity function to
+find out what they are.  In which case we skip to Section~\ref{sec:linearity}
+below.
+
+\subsection{Implied Equality Constraints II}
+
+Suppose instead that the user (here us, but in real life a real user using
+the \texttt{hitrun} function) had instead specified the equality and inequality
+constraints using \eqref{eq:median-one} instead of \eqref{eq:median-two}
+<<cons-too>>=
+stopifnot(d %% 2 == 0)
+a2 <- rbind(rep(1, d), y, as.numeric(y < (d + 1) / 2))
+b2 <- c(1, (d + 1) / 2, 1 / 2)
+a1 <- - diag(d)
+b1 <- rep(0, d)
+a1 <- rbind(a1, - as.numeric(y <= (d + 1) / 2 - r) -
+    as.numeric(y >= (d + 1) / 2 + r))
+b1 <- c(b1, - 1 / 2)
+hrep7 <- makeH(a1, b1, a2, b2)
+hrep7
+@
+Then we redo the linear program in Section~\ref{sec:avoid-linearity} above.
+<<lpcdd-redo>>=
+hrep8 <- cbind(hrep7, 0)
+hrep8[hrep8[ , 1] == 0, d + 3] <- (-1)
+lout <- lpcdd(d2q(hrep8), d2q(grad6), minimize = FALSE)
+names(lout)
+lout$solution.type
+lout$optimal.value
+@
+Again, if we did not have \verb@lout$solution.type@ equal to \texttt{"Optimal"},
+this would have indicated that the constraints were actually inconsistent
+(the constraint set is empty).  In this case, the \texttt{hitrun} function
+should terminate with an explanatory error.
+
+The fact that \verb@lout$optimal.value@ is strictly positive
+(the reason it is a character
+string rather than numeric zero is because of the way that rational numbers
+are represented in the \texttt{rcdd} package) says that there are no implied
+inequality constraints and we do not have to use the linearity function to
+find out what they are.  In which case we skip the following
+section (Section~\ref{sec:linearity}) and go directly
+to Section~\ref{sec:change} below.  Section~\ref{sec:linearity} does nothing
+except make \texttt{hrep2} a copy of \texttt{hrep1} with components converted
+to rational arithmetic.
+
+\subsection{Implied Equality Constraints III} \label{sec:linearity}
 
 We now do an operation that is needed for this example when $d$ is even
-but not when $d$ is odd.  It is needed if we allow the user to input
+but not when $d$ is odd.  It is needed if we allow users to input
 general constraint matrices and vectors.
-This is determination of the putative inequality constraints that actually
-hold with equality at all points in the constraint set.
+This is determination of the implied equality constraints.
 <<hrep-too>>=
 lout <- linearity(d2q(hrep1))
 is.equality <- hrep1[ , 1] == 1
 is.equality[lout] <- TRUE
 is.equality
 @
-The constraints that hold with equality (both the ones that were given
-as equality constraints and the ones that were given as inequality constraints
-but the \texttt{linearity} function discovered actually hold with equality)
+The constraints that hold with equality (both explicit and implied)
 are the ones with the corresponding components of \texttt{is.equality} equal
 to \texttt{TRUE}.
 
@@ -222,14 +321,14 @@ hrep2[is.equality , 1] <- "1"
 hrep2
 @
 
+\subsection{Change of Variable} \label{sec:change}
+
 Now we need to deal with equality constraints and inequality constraints
 separately.
 <<sep>>=
 hrep3 <- hrep2[hrep2[ , 1] == "1", , drop = FALSE]
 hrep4 <- hrep2[hrep2[ , 1] == "0", , drop = FALSE]
 @
-
-\subsection{Change of Variable} \label{sec:change}
 
 \subsubsection{V-Representation}
 
@@ -338,14 +437,7 @@ There is one remaining issue involving computational geometry:
 finding a starting point for the Markov chain if one is not supplied,
 which can be any point in the constraint set (in new coordinates).
 
-This is the point where the R function \texttt{hitrun} from the
-aforementioned R package \texttt{polyapost}, version 1.3-1 finds the
-vertices of the support of the distribution (a convex polytope) in the
-new coordinates.  And this is the operation that does not scale and
-can take hours, days, arbitrarily long, really, for high-dimensional
-problems.
-
-So we use a different strategy, linear programming.  To do this we solve
+So we use linear programming.  To do this we solve
 the following linear program
 \begin{align*}
     \text{\normalfont maximize} & \quad e
