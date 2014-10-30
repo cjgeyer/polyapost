@@ -8,8 +8,8 @@
 # a1 and b1 can be missing
 # a2 and b2 can be missing
 
-# this file is now revised to follow the design document hitrun2.Rnw
-# (in the devel directory) rather than the older hitrun.Rnw
+# this file is now revised to follow the design document hitrun3.Rnw
+# (in the devel directory) rather than the older hitrun.Rnw and hitrun2.Rnw
 
 hitrun <- function(alpha, ...)
     UseMethod("hitrun")
@@ -127,10 +127,27 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     b2 <- c(b2, "1")
 
     hrep1 <- makeH(a1, b1, a2, b2)
-    lin.time <- system.time(
-        linout <- linearity(hrep1)
-    )
-    hrep1[linout, 1] <- "1"
+
+    # step 1: discover whether linearity step is necessary.
+
+    start.time.lin <- proc.time()
+
+    hrep6 <- cbind(hrep1, "0")
+    hrep6[hrep6[ , 1] == "0", length(alpha) + 3] <- "-1"
+    grad6 <- c(rep("0", d), "1")
+    lout <- lpcdd(hrep6, grad6, minimize = FALSE)
+    if (lout$solution.type != "Optimal")
+        stop("constraint set is empty (constraints are inconsistent)")
+    if (qsign(lout$optimal.value) <= 0) {
+        # step 2: discover which putative inequality constraints are
+        # actually equality constraints
+        lin.time <- system.time(
+            linout <- linearity(hrep1)
+        )
+        hrep1[linout, 1] <- "1"
+    }
+
+    stop.time.lin <- proc.time()
 
     hrep3 <- hrep1[hrep1[ , 1] == "1", , drop = FALSE]
     hrep4 <- hrep1[hrep1[ , 1] == "0", , drop = FALSE]
@@ -145,6 +162,13 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
         colo <- paste(nolo, collapse = ", ")
         stop(paste("variable(s)", colo, "constrained to be exactly zero"))
     }
+
+    # step 3: find V-representation of affine hull of constraint set
+    # and use it to construct one-to-one affine transformation from
+    # a vector space to the affine hull of constraint set
+    # call this map from "new coordinates" (NC) to "old coordinates (OC)
+    # also find constraint set in NC that maps one-to-one and onto
+    # constraint set in OC using this one-to-one affine transformation
 
     basis.time <- system.time(
         vrep3 <- scdd(hrep3, representation = "H")$output
@@ -179,6 +203,9 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     # mapped one-to-one onto the constraint set in OC by the function
     # fred defined in the previous comment
 
+    # step 4: find a point (to be initial point of Markov chain) that
+    # is relative interior point of constraint set in NC
+
     start.time.rip <- proc.time()
 
     hrep5 <- cbind("0", bvec, qneg(amat), "-1")
@@ -209,7 +236,7 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
         out$a2 <- a2
         out$b2 <- b2
     }
-    foo <- list(linearity = lin.time, basis = basis.time,
+    foo <- list(linearity = stop.time.lin - start.time.lin, basis = basis.time,
         relative.interior.point = stop.time.rip - start.time.rip,
         mcmc = out$time)
     bar <- foo[[1]]
