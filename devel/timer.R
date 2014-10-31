@@ -1,7 +1,7 @@
 
  library(polyapost, lib.loc = "../package/polyapost.Rcheck")
 
- d <- 1000
+ d <- 200
  x <- 1:d
  # equality constraints
  #     mean equal to (d + 1) / 2

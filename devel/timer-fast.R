@@ -1,7 +1,7 @@
 
  library(polyapost, lib.loc = "../package/polyapost.Rcheck")
 
- d <- 601
+ d <- 1000
  x <- 1:d
 
  # equality constraints
