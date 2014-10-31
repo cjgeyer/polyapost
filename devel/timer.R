@@ -1,7 +1,7 @@
 
  library(polyapost, lib.loc = "../package/polyapost.Rcheck")
 
- d <- 200
+ d <- 20
  x <- 1:d
  # equality constraints
  #     mean equal to (d + 1) / 2
@@ -31,6 +31,9 @@
  # posterior would be another Dirichlet with n + alpha - 1,
  #    where n is count of IID data for each value
  alpha <- rep(2.3, d)
+ out <- try(hitrun(alpha, nbatch = 30, blen = 250,
+     a1 = a1, b1 = b1, a2 = a2, b2 = b2, stop.if.implied.equalities = TRUE))
+ inherits(out, "try-error")
  out <- hitrun(alpha, nbatch = 30, blen = 250,
      a1 = a1, b1 = b1, a2 = a2, b2 = b2)
  out$time

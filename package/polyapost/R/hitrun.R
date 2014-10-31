@@ -36,7 +36,8 @@ hitrun.hitrun <- function(alpha, nbatch, blen, nspac, outmat, debug, ...)
 }
 
 hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL, 
-     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE, ...)
+     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE,
+     stop.if.implied.equalities = FALSE, ...)
 {
     if (! exists(".Random.seed")) runif(1)
     saveseed <- .Random.seed
@@ -118,6 +119,8 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     stopifnot(nspac >= 1)
     stopifnot(is.logical(debug))
     stopifnot(length(debug) == 1)
+    stopifnot(is.logical(stop.if.implied.equalities))
+    stopifnot(length(stop.if.implied.equalities) == 1)
 
     d <- length(alpha)
     # add unit simplex constraints
@@ -141,6 +144,8 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     if (qsign(lout$optimal.value) <= 0) {
         # step 2: discover which putative inequality constraints are
         # actually equality constraints
+        if (stop.if.implied.equalities)
+            stop("there are implied equalities, and you requested a stop")
         lin.time <- system.time(
             linout <- linearity(hrep1)
         )

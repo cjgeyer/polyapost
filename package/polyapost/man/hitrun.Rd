@@ -11,7 +11,8 @@
 hitrun(alpha, \dots)
 
 \S3method{hitrun}{default}(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
-     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE, \dots)
+     nbatch = 1, blen = 1, nspac = 1, outmat = NULL, debug = FALSE,
+     stop.if.implied.equalities = FALSE, \dots)
 
 \S3method{hitrun}{hitrun}(alpha, nbatch, blen, nspac, outmat, debug, \dots)
 }
@@ -33,6 +34,8 @@ hitrun(alpha, \dots)
       May be \code{NULL}, in which case the identity matrix is used.}
   \item{debug}{if \code{TRUE}, then additional output useful for debugging
       is produced.}
+  \item{stop.if.implied.equalities}{If \code{TRUE} stop if there
+      are any implied equalities.}
   \item{\dots}{ignored arguments.  Allows the two methods to have different
       arguments.  You cannot change the Dirichlet parameter or the constraints
       (hence cannot change the target distribution) when using the method
@@ -105,7 +108,15 @@ that there are no  implied equality constraints.
 This issue is not a big deal if there are only in the low hundreds of
 variables, because the algorithm to find implied equality constraints is not
 that slow.  The same example that takes 3 days of computing time with 1000
-variables takes only 15 seconds with 100 variables and 
+variables takes only 15 seconds with 100 variables, 3 and 1/2 minutes with 200
+variables, and 23 minutes with 300 variables.  As one can see, this issue
+does become a big deal as the number of variables increases.  Thus users
+should avoid implied inequality constraints, if possible,
+when there are many variables.  Admittedly, there
+is no sure way users can identify and eliminate implied equality constraints.
+(The sure way to do that is precisely the time consuming step we are trying
+to avoid.)  The argument \code{stop.if.implied.equalities} can be used to
+quickly test for the presence of implied equalities.
 }
 \references{
 Belisle, C. J. P., Romeijn, H. E. and Smith, R. L. (1993)
