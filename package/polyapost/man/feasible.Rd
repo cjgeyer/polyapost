@@ -10,7 +10,7 @@
   probability distributions which must satisfy A1p = b1, A2p <= b2 and
   A3p >= b3. All the components of the bi's must be nonnegative
   In addition  each probability in the solution must
-  be at least as big as eps, a small positive number.}
+  be at least as big as \code{eps}, a small positive number.}
 \usage{feasible(A1,A2,A3,b1,b2,b3,eps)}
 \arguments{
  \item{A1}{The matrix for the equality constraints.This must always
@@ -25,8 +25,8 @@
 \item{b3}{The rhs vector for A3, each component must be nonnegative.
   If A3 is NULL then b3 must be NULL.}
 \item{eps}{A small positive number. Each member of the solution must
-  be at least as large as eps. Care must be taken not to choose a value
-  of eps which is too large.}
+  be at least as large as \code{eps}. Care must be taken not to choose a value
+  of \code{eps} which is too large.}
 }
 \value{The function returns a vector. If the components of the vector
   are positive then the feasible solution is the vector returned,

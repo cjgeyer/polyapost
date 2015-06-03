@@ -3,7 +3,7 @@
 \keyword{survey}
 \concept{Bayesian survey sampling}
 \concept{Polya posterior}
-\title{Dependent sampling from the unifrom distribution on
+\title{Dependent sampling from the uniform distribution on
   a polytope.}
 \description{Let p=(p1,...,pn) be a probability distribution 
   which belongs to a lower dimensional polytope of the n-dimensional
