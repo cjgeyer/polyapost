@@ -8,6 +8,8 @@ Author: Glen Meeden <glen@stat.umn.edu> and Radu Lazar
         <lazar@stat.umn.edu> and Charles J. Geyer <charlie@stat.umn.edu>
 Maintainer: Glen Meeden <glen@stat.umn.edu>
 ByteCompile: TRUE
-Description: Generate dependent samples from a non-full dimensional
-        polytope via a Markov Chain sampler
+Description: Simulate via Markov chain Monte Carlo (hit-and-run algorithm)
+    a Dirichlet distribution conditioned to satisfy a finite set of linear
+    equality and inequality constraints (hence to lie in a convex polytope
+    that is a subset of the unit simplex).
 License: GPL (>= 2)
