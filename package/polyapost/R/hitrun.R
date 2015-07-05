@@ -230,6 +230,11 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     amat <- q2d(amat)
     rip <- q2d(rip)
 
+    # rcdd ver 1.1-9 and above burn random numbers and change .Random.seed
+    # (forced by R CMD check for R-3.2.0 and up)
+    # so put .Random.seed back where it was at the beginning
+    assign(".Random.seed", saveseed, .GlobalEnv)
+
     out <- hitrunHelper(alpha, rip, nbatch, blen, nspac,
         origin, basis, amat, bvec, outmat, debug)
 

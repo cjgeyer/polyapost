@@ -4,6 +4,8 @@ useDynLib(polyapost, .registration = TRUE, .fixes = "C_")
 
 importFrom(boot, simplex)
 import(rcdd)
+importFrom(stats, runif)
+importFrom(stats, quantile)
 
 export(polyap)
 export(wtpolyap)
