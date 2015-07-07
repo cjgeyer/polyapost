@@ -65,7 +65,7 @@ The Polya posterior can be modified to take into account
 available prior information about the population. This leads to 
 the constrained Polya posterior. More discussion about the theory
 underlying the constrained Polya posterior can be found in 
- Lazar, Meeden and Nelson (2005). \nocite{l-m-n05}. The discussion 
+ Lazar, Meeden and Nelson (2008). \nocite{l-m-n05}. The discussion 
 in this vignette will focus on using the constrained Polya 
 posterior to simulate completed copies of the population. 
 
@@ -278,7 +278,7 @@ $\texttt{burnin} - 1$ simulated population means and returns the
 remaining $\texttt{reps} - \texttt{burnin} + 1$
 simulated population means. In this case we are keeping all of the 
 simulated means because $\texttt{burnin} = 1$. 
-We generated a total of  $\texttt{reps}=100,001$ means. The average of these 200,001
+We generated a total of  $\texttt{reps}=200,001$ means. The average of these 200,001
 is given in the output.
 The plot of the first and each successive two hundredth simulated 
 population mean is given 
@@ -320,6 +320,16 @@ The second component of the output from the function \verb@constrppmn@
 out[[2]] 
 out[[3]] 
 @
+
+Qu, Meeden and Zhang (2015) \nocite{qmz15}  and Strief and Meeden (2014) \nocite{s-m14}
+discuss two situations where the constrained Polya posterior yields good inference procedures.
+In the first, they demonstrate  that for some small area estimation problems
+the constrained Polya posterior  yields  more robust procedures than standard methods. 
+In the second,  they demonstrate that  for each unit in a sample the constrained Polya 
+posterior can be used to find a weight. This weight can be given the usual interpretation 
+as the number of units in the population the sampled unit represents. These weights 
+can then be used to find good estimates of population parameters.
+
 
 \subsection{Some computing issues}
 
@@ -467,13 +477,13 @@ wtpolyap(ysamp,wts,25)
 
 \section{An example using the hitrun function}
 
-A limitation of the function \texttt{constrppprob}  is that it assumes that 
-given the sample the posterior 
-distribution of interest over the polytope defined by the constraints 
-is the uniform distribution. In practice one would like to be able to use 
-an arbitrary Dirichlet distribution as a possible posterior. 
-The \texttt{hitrun} function handles this more general 
-problem.
+
+A limitation of the function \texttt{constrppprob}  is that one cannot add any 
+constraints.  In practice one would like to be able to find approximately
+the expectation of the components of a constrained  Dirichlet distribution.
+The \texttt{hitrun} function handles this more general problem.
+
+
 
 For a survey  sampling example suppose 
 we have a population that is divided into two strata.
@@ -514,9 +524,9 @@ we will only include one constraint for the strata sizes.
 
 We set the class sizes to be 5,000, 3,000 and 2,000 while the 
 stratum  sizes are 6,000 and 4,000. The vector 
-\[
+<<>>=
 smp<-c(20,10,10,25,15,20)
-\]
+@ 
 gives the observed number  of units in each class and stratum
 combination for a sample of size 40 from the first stratum and of 
 size 60 from the second. Since the sample size
@@ -533,7 +543,6 @@ This posterior expectation is the last line in the next code chunk.
 <<exphr>>=
  mxcst<-rbind(c(1,0,0,1,0,0),c(0,1,0,0,1,0),c(1,1,1,0,0,0))
  mncst<-c(5000/10000,3000/10000,6000/10000)
- smp<-c(20,10,10,25,15,20)
  out<-hitrun(smp, a2=mxcst, b2=mncst, nbatch=20, blen=1000)
 @
 (Monte Carlo approximations of) posterior means
