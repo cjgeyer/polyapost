@@ -1,10 +1,11 @@
 # do once (cannot put this in Makevars because R CMD check complains)
 export PKG_CFLAGS="-W -Wall -Wextra"
+# if version number has changed
+\rm -f polyapost_*.tar.gz
 # do every time
-\rm -f polyapost/src/*.{o,so} polyapost/src/symbols.rds
-R CMD check polyapost
+R CMD build polyapost
+R CMD check polyapost_*.tar.gz
 # do at least once before shipping
 # both polyapost.Rcheck/polyapost-Ex.Rout and polyapost.Rcheck/tests/*.Rout
 #     should have no complaints from valgrind
-\rm -f polyapost/src/*.{o,so} polyapost/src/symbols.rds
 R CMD check --use-valgrind polyapost

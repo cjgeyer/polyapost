@@ -1,8 +1,8 @@
 Package: polyapost
-Version: 1.4-2
-Date: 2015-07-07
+Version: 1.4-3
+Date: 2017-03-14
 Imports: boot, stats
-Depends: R (>= 3.0.0), rcdd (>= 1.1-5)
+Depends: R (>= 3.0.2), rcdd (>= 1.1-10)
 Title: Simulating from the Polya Posterior
 Author: Glen Meeden <glen@stat.umn.edu> and Radu Lazar
         <lazar@stat.umn.edu> and Charles J. Geyer <charlie@stat.umn.edu>
