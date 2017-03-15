@@ -15,3 +15,4 @@ devel/hitrun3.tex
 devel/demo.tex
 Rprof.out
 nohup.out
+reverse_dependencies/*
