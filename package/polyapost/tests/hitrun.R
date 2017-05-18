@@ -57,6 +57,7 @@ foo <- vrep3[ , - c(1, 2)]
 origin <- foo[is.point, ]
 basis <- foo[is.line, ]
 basis <- t(basis)
+basis <- qgram(basis)
 identical(q2d(origin), hout$origin)
 identical(q2d(basis), hout$basis)
 
