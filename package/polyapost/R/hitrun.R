@@ -8,8 +8,8 @@
 # a1 and b1 can be missing
 # a2 and b2 can be missing
 
-# this file is now revised to follow the design document hitrun3.Rnw
-# (in the devel directory) rather than the older hitrun.Rnw and hitrun2.Rnw
+# this file is now revised to follow the design document hitrun4.Rnw
+# (in the devel directory) rather than the older hitrun*.Rnw
 
 hitrun <- function(alpha, ...)
     UseMethod("hitrun")
@@ -191,11 +191,13 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     origin <- foo[is.point, ]
     basis <- foo[is.line, , drop = FALSE]
     basis <- t(basis)
+    # use new orthogonal basis function
+    basis <- qgram(basis)
 
     # at this point
     #     fred <- function(x) origin + basis %*% x
     # maps from new coordinates (NC) onto the affine hull
-    #     of the constraint (a convex polytope) in original coordinated (OC)
+    #     of the constraint (a convex polytope) in original coordinates (OC)
 
     amat <- qneg(hrep4[ , - c(1, 2), drop = FALSE])
     bvec <- hrep4[ , 2]
@@ -203,7 +205,7 @@ hitrun.default <- function(alpha, a1 = NULL, b1 = NULL, a2 = NULL, b2 = NULL,
     amat <- qmatmult(amat, basis)
 
     # at this point
-    #     sally <- function(x) all(amat %*% x <= bvec)
+    #     function(x) all(amat %*% x <= bvec)
     # is the indicator function of a convex polytope in NC that is
     # mapped one-to-one onto the constraint set in OC by the function
     # fred defined in the previous comment

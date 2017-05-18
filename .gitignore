@@ -1,3 +1,4 @@
+*.pdf
 *.dvi
 *.aux
 *.log
@@ -12,6 +13,8 @@ symbols.rds
 devel/hitrun.tex
 devel/hitrun2.tex
 devel/hitrun3.tex
+devel/hitrun4.tex
+devel/hitrun4.R
 devel/demo.tex
 Rprof.out
 nohup.out
