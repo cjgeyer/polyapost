@@ -2,6 +2,7 @@
 \usepackage{indentfirst}
 \usepackage{amsmath}
 \usepackage{amscd}
+\usepackage{natbib}
 \usepackage[utf8]{inputenc}
 \usepackage{url}
 %\VignetteIndexEntry{Polyapost  Package Tutorial}
@@ -10,7 +11,8 @@
 \begin{document}
 
 \title{Simulating from the Polya posterior}
-\author{Glen Meeden (\texttt{gmeeden@umn.edu})}
+\author{Glen Meeden (\texttt{gmeeden@umn.edu})
+\and Charles Geyer (\texttt{geyer@umn.edu})}
 \maketitle
 
 \section{Introduction} \label{sec:intro}
@@ -69,25 +71,19 @@ underlying the constrained Polya posterior can be found in
 in this vignette will focus on using the constrained Polya 
 posterior to simulate completed copies of the population. 
 
+<<options-width,include=FALSE,echo=FALSE>>=
+options(keep.source = TRUE, width = 60)
+@
+
 \section{R}
 
 <<library>>=
 library(polyapost)
 @
-<<R,echo=FALSE,message=FALSE>>=
-foo <- getRversion()
-baz <- library(help = "polyapost")
-baz <- baz$info[[1]]
-baz <- baz[grep("Version", baz)]
-baz <- sub("^Version: *", "", baz)
-qux <- library(help = "rcdd")
-qux <- qux$info[[1]]
-qux <- qux[grep("Version", qux)]
-qux <- sub("^Version: *", "", qux)
-@
-This document was processed with R, version \Sexpr{foo}, using the CRAN
-packages \texttt{polyapost}, version \Sexpr{baz},
-and \texttt{rcdd}, version \Sexpr{qux}.
+This document was processed with R, version \Sexpr{getRversion()},
+using the CRAN
+packages \texttt{polyapost}, version \Sexpr{packageVersion("polyapost")},
+and \texttt{rcdd}, version \Sexpr{packageVersion("rcdd")}.
 <<seed>>=
 set.seed(313)
 @
@@ -524,9 +520,9 @@ we will only include one constraint for the strata sizes.
 
 We set the class sizes to be 5,000, 3,000 and 2,000 while the 
 stratum  sizes are 6,000 and 4,000. The vector 
-<<>>=
+<<exphr-smp>>=
 smp<-c(20,10,10,25,15,20)
-@ 
+@
 gives the observed number  of units in each class and stratum
 combination for a sample of size 40 from the first stratum and of 
 size 60 from the second. Since the sample size
@@ -539,30 +535,77 @@ to the polytope defined by the constraints.
 The next bit of code 
 shows how the function \texttt{hitrun} can find the posterior 
 expectation of the $p$ vector given the sample and the constraints.
-This posterior expectation is the last line in the next code chunk.
 <<exphr>>=
  mxcst<-rbind(c(1,0,0,1,0,0),c(0,1,0,0,1,0),c(1,1,1,0,0,0))
- mncst<-c(5000/10000,3000/10000,6000/10000)
+ mncst<-c("5000/10000","3000/10000","6000/10000")
  out<-hitrun(smp, a2=mxcst, b2=mncst, nbatch=20, blen=1000)
 @
-(Monte Carlo approximations of) posterior means
-<<exphr-means>>=
- round(colMeans(out$batch), digits=3)
-@
-and there Monte Carlo standard errors
-<<exphr-mcse>>=
- round(apply(out$batch, 2, sd) / sqrt(out$nbatch), digits=3)
-@
+Note that \texttt{a1} and \texttt{b1} are omitted because there are
+no inequality constraints in this example.
 
-Note that \texttt{a1} and \texttt{b1} are omitted because there are no inequality 
-constraints in this example.
+Also note that \texttt{hitrun} requires no initial distribution. It
+figures out a point in the relative interior of the constraint set
+to start at all by itself.
+
+The reason why \texttt{mncst} is given as character strings is so
+\texttt{hitrun} will use infinite-precision rational arithmetic
+to calculate the constraint set, thus assuring no errors due to
+the inexactness of ordinary computer arithmetic.  The reason why
+\texttt{mxcst}
+did not need the same trick is that it is integer-valued and integers
+are exact in ordinary computer arithmetic.  The reason why $3000/10000$
+is not a round number to computers is that they use binary arithmetic
+rather than decimal as shown by
+<<show-inexact>>=
+foo <- d2q(3000/10000)
+bar <- q2q("3000/10000")
+baz <- qmq(foo, bar)
+foo # three tenths decimal converted to binary converted to rational
+bar # three tenths rational
+baz # the difference
+@
+The difference is not large,
+but such differences can change not just the position
+of vertices of the constraint polytope but the actual number of vertices.
+
+The (Monte Carlo approximations of) posterior means are
+<<exphr-means>>=
+round(colMeans(out$batch), digits=3)
+@
+and the Monte Carlo standard errors are
+<<exphr-mcse>>=
+round(apply(out$batch, 2, sd) / sqrt(out$nbatch), digits=3)
+@
+Thus we see that the posterior means have almost the reported
+three-significant-figure accuracy, so long as the batch means have
+no serial correlation, which is shown by Figure~\ref{fig:enough},
+which is made by the following code.
+<<label=fig-enough-code,include=FALSE>>=
+i <- 1
+acf(out$batch[,i], main=paste("Batch Means for Component", i))
+@
+\begin{figure}
+\begin{center}
+<<label=fig-enough,fig=TRUE,echo=FALSE>>=
+<<fig-enough-code>>
+@
+\end{center}
+\caption{Autocorrelation Plot for Batch Means}
+\label{fig:enough}
+\end{figure}
+This figure only shows the code for component \Sexpr{i} of the state vector.
+The other components (not shown) could be seen by changing the variable
+\texttt{i} and rerunning the \texttt{Sweave} source for the vignette
+(which is found in the package source tarball on CRAN).
+None of the components have any statistically significant autocorrelation
+for this batch size (\Sexpr{out$blen}).  (We looked at them.)
 
 Even though it is more general than \texttt{constrppprob} we recommend that \texttt{hitrun}
-be used even in problems where \texttt{constrppprob} is applicable.
+be used even in problems where \texttt{constrppprob} is applicable,
+because \texttt{hitrun} has many features that \texttt{constrppprob} lacks.
 
-\bibliographystyle{plain}
+\bibliographystyle{charlie}
 \bibliography{ref}
 
 \end{document}
-
 

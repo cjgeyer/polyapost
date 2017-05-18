@@ -118,6 +118,51 @@ is no sure way users can identify and eliminate implied equality constraints.
 to avoid.)  The argument \code{stop.if.implied.equalities} can be used to
 quickly test for the presence of implied equalities.
 }
+\section{Philosophy of MCMC}{
+This function follows the philosophy of MCMC used in the CRAN package
+\code{mcmc} and the introductory chapter of the
+\emph{Handbook of Markov Chain Monte Carlo} (Geyer, 2011).
+
+The \code{hitrun} function automatically does batch means in order to reduce
+the size of output and to enable easy calculation of Monte Carlo standard
+errors (MCSE), which measure error due to the Monte Carlo sampling (not
+error due to statistical sampling --- MCSE gets smaller when you run the
+computer longer, but statistical sampling variability only gets smaller
+when you get a larger data set).  All of this is explained in the package
+vignette for the \code{mcmc} package (\code{vignette("demo", "mcmc")})
+and in Section 1.10 of Geyer (2011).
+
+The \code{hitrun} function does not apparently
+do \dQuote{burn-in} because this concept does not actually help with MCMC
+(Geyer, 2011, Section 1.11.4) but the re-entrant property of the hitrun
+function does allow one to do \dQuote{burn-in} if one wants.
+Assuming \code{alpha}, \code{a1}, \code{b1}, \code{a2}, and \code{b2}
+have been already defined
+\preformatted{
+out <- hitrun(alpha, a1, b1, a2, b2, nbatch = 1, blen = 1e5)
+out <- hitrun(out, nbatch = 100, blen = 1000)
+}
+throws away a run of 100 thousand iterations before doing another run of
+100 thousand iterations that is actually useful for analysis, for example,
+\preformatted{
+apply(out$batch, 2, mean)
+apply(out$batch, 2, sd)
+}
+gives estimates of posterior means and their MCSE assuming the batch length
+(here 1000) was long enough to contain almost all of the signifcant
+autocorrelation (see Geyer, 2011, Section 1.10, for more on MCSE).
+The re-entrant property of the \code{hitrun} function (the second run starts
+where the first one stops) assures that this is really \dQuote{burn-in}.
+
+The re-entrant property allows one to do very long runs without having to
+do them in one invocation of the \code{hitrun} function.
+\preformatted{
+out2 <- hitrun(out)
+out3 <- hitrun(out2)
+batch <- rbind(out$batch, out2$batch, out3$batch)
+}
+produces a result as if the first run had been three times as long.
+}
 \references{
 Belisle, C. J. P., Romeijn, H. E. and Smith, R. L. (1993)
 Hit-and-run algorithms for generating multivariate distributions.
@@ -127,6 +172,11 @@ Chen, M. H. and Schmeiser, B. (1993)
 Performance of the Gibbs, hit-and-run, and Metropolis samplers.
 \emph{Journal of Computational and Graphical Statistics}, \bold{2}, 251--272.
 
+Geyer, C. J. (2011)
+Introduction to MCMC.
+In \emph{Handbook of Markov Chain Monte Carlo}. Edited by S. P. Brooks,
+A. E. Gelman, G. L. Jones, and X. L. Meng.
+Chapman & Hall/CRC, Boca Raton, FL, pp. 3--48.
 }
 \seealso{\code{\link{ConvertGMP}} and \code{\link{ArithmeticGMP}}}
 \examples{
