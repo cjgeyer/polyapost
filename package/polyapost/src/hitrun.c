@@ -3,6 +3,7 @@
 #include <Rinternals.h>
 #include <Rmath.h>
 #include <R_ext/BLAS.h>
+#include <R_ext/Utils.h>
 #include <string.h>
 #include "polyapost.h"
 
@@ -331,6 +332,9 @@ SEXP hitrun(SEXP alpha, SEXP initial, SEXP nbatch, SEXP blen, SEXP nspac,
                     memcpy(state, proposal, dim_nc * sizeof(double));
                     current_log_dens = proposal_log_dens;
                 }
+
+                R_CheckUserInterrupt();
+
             } /* end of inner loop (one iteration) */
 
             outfun(state, out_buffer);

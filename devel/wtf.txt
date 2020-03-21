@@ -1,0 +1,44 @@
+
+exported R functions
+
+    polyap
+    wtpolyap
+    feasible
+    constrppmn
+    constrppprob
+    hitrun
+    hitrun.hitrun
+    hitrun.default
+
+in file cwpolya.R, R function cwpolya calls C function cwpolya
+in file hitrun.R, R function hitrunHelper calls C function hitrun
+in file means.R, R function means calls C function means, which
+    in turn calls R function gen (defined in the same file)
+in file probvect1.R, R function probvect1 calls C function probvect1
+
+R function cwpolya is called in R functions polyap and wtpolyap,
+    which are exported (to be used by users)
+R function hitrunHelper is called in R functions hitrun.hitrun and
+    hitrun.default, which are methods of exported generic function hitrun,
+    all of which are exported (to be used by users)
+R function means is called in R function polyaest, which is called in
+    R function constrppmn, which is exported (to be used by users)
+R function probvect1 is called in R function probvect, which is called in
+    R function constrppprob, which is exported (to be used by users)
+
+R function call polyap(ysamp, k) generates k samples
+R function call wtpolyap(ysamp, wts, k) generates k samples
+R function calls hitrun(alpha, a1, b1, a2, b2, nbatch, blen, nspac, ...)
+    and hitrun(alpha, nbatch, blen, nspac, ...) where ... indicates other
+    arguments are possible (not an actual R ... operator) generate
+    nbatch * blen * nspac samples.  But R function hitrun also does highly
+    time consuming operations in package rcdd that are not interruptable
+    in current versions of that package, so we should add some of that too.
+    Those time-consuming operations are in R function hitrun.default
+    calling R functions lpcdd, linearity, and scdd in R package rcdd,
+    of which the call to linearity, if necessary, is the most time consuming
+R function call constrppmn(A1,A2,A3,b1,b2,b3,initsol,reps,ysamp,burnin)
+    generates reps + burnin samples (?)
+R function call constrppprob(A1,A2,A3,b1,b2,b3,initsol,step,k) generates
+    k samples (?)
+

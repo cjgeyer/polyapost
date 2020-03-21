@@ -2,6 +2,7 @@
 /*for combined equality and inequality constraints A1x=b1,A2x<=b2. It returns all values.*/
 
 #include <R.h>
+#include <R_ext/Utils.h>
 #include "polyapost.h"
 
 static double sum( double x[], int vectsize )
@@ -174,7 +175,10 @@ double *initsol, int * rep, double *ysamp, double *estimate)
       initsol[j]=result[j];
      }
      estimate[i]=inprod(initsol,ysamp,n);
+
+     R_CheckUserInterrupt();
   }
+
   PutRNGstate(); 
 }
 

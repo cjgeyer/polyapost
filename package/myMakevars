@@ -1,0 +1,2 @@
+PKG_CFLAGS=$(C_VISIBILITY) -Wall -Wextra
+PKG_LIBS = $(BLAS_LIBS) $(FLIBS)

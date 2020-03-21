@@ -2,6 +2,7 @@
 /*for combined equality and inequality constraints A1x=b1,A2x<=b2. It returns the last value.*/
 
 #include <R.h>
+#include <R_ext/Utils.h>
 #include "polyapost.h"
 
 static double sum1( double x[], int vectsize )
@@ -160,6 +161,8 @@ double *initsol, int * length, double *estimate)
      {
       initsol[j]=result[j];
      }
+
+     R_CheckUserInterrupt();
   }
   for(j=0;j<n;j++)
      {

@@ -67,7 +67,7 @@ The Polya posterior can be modified to take into account
 available prior information about the population. This leads to 
 the constrained Polya posterior. More discussion about the theory
 underlying the constrained Polya posterior can be found in 
- Lazar, Meeden and Nelson (2008). \nocite{l-m-n05}. The discussion 
+ Lazar, Meeden and Nelson (2008). \nocite{l-m-n05} The discussion
 in this vignette will focus on using the constrained Polya 
 posterior to simulate completed copies of the population. 
 

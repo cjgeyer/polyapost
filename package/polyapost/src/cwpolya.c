@@ -1,5 +1,6 @@
 
 #include <R.h>
+#include <R_ext/Utils.h>
 #include "polyapost.h"
 
 void cwpolya(double *x, double *w, int *nin, int *Nin)
@@ -7,7 +8,7 @@ void cwpolya(double *x, double *w, int *nin, int *Nin)
 	int i, j, k;
 	int n = nin[0];
 	int N = Nin[0];
-        double a;
+	double a;
 
 	GetRNGstate();
 
@@ -19,6 +20,7 @@ void cwpolya(double *x, double *w, int *nin, int *Nin)
 		for(k=j; k <n; k++)
 			w[k] = w[k] + 1;
 		x[n+i] = x[j];
+		R_CheckUserInterrupt();
 	}
 
 	PutRNGstate();

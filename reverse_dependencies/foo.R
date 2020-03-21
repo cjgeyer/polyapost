@@ -3,6 +3,7 @@ foo <- list.files()
 bar <- grep("^foo\\.R", foo, invert = TRUE, value = TRUE)
 baz <- paste("rm -r", paste(bar, collapse = " "))
 system(baz)
+list.files()
 # my package
 system("R CMD build ../package/polyapost")
 # doit
