@@ -3,32 +3,34 @@
 \keyword{survey}
 \concept{Bayesian survey sampling}
 \concept{Polya posterior}
-\title{Feasible solution for a probability distribution which must
-  satisfy a system of linear equality and inequality constraints.}
-\description{This function finds a feasible solution, p=(p1,...,pn), in
-  the n-dimensional   simplex of
-  probability distributions which must satisfy A1p = b1, A2p <= b2 and
-  A3p >= b3. All the components of the bi's must be nonnegative
+\title{Feasible Solution for a Probability Distribution which must
+  Satisfy a System of Linear Equality and Inequality Constraints.}
+\description{This function finds a feasible solution,
+  \eqn{p=(p_1,\ldots,p_n)}{p=(p1,...,pn)}, in the \eqn{n}-dimensional simplex of
+  probability distributions which must satisfy
+  \eqn{A_1 p = b_1}{A1 p = b1},
+  \eqn{A_2 p = b_2}{A2 p = b2}, and
+  \eqn{A_3 p = b_3}{A3 p = b3},
+  All the components of the \eqn{b_i}{bi} must be nonnegative
   In addition  each probability in the solution must
   be at least as big as \code{eps}, a small positive number.}
 \usage{feasible(A1,A2,A3,b1,b2,b3,eps)}
 \arguments{
  \item{A1}{The matrix for the equality constraints.This must always
-  contain the constraint that the sum of the pi's is one.}
-\item{A2}{The matrix for the <= inequality constraints. This must always
-  contain the constraints -pi <= 0, i.e. that the pi's must be
-  nonnegative.}
-\item{A3}{The matrix for the >= inequality constraints. If there are no
-  such constraints A3 must be set equal to NULL.}
-\item{b1}{The rhs vector for A1, each component must be nonnegative.}
-\item{b2}{The rhs vector for A2, each component must be nonnegative.}
-\item{b3}{The rhs vector for A3, each component must be nonnegative.
-  If A3 is NULL then b3 must be NULL.}
-\item{eps}{A small positive number. Each member of the solution must
-  be at least as large as \code{eps}. Care must be taken not to choose a value
+  contain the constraint \code{sum(p) == 1}.}
+\item{A2}{The matrix for the \code{<=} inequality constraints.  This must always
+  contain the constraints \code{-p <= 0}.}
+\item{A3}{The matrix for the \code{>=} inequality constraints.  If there are no
+  such constraints \code{A3} must be set equal to \code{NULL}.}
+\item{b1}{The rhs vector for \code{A1}, each component must be nonnegative.}
+\item{b2}{The rhs vector for \code{A2}, each component must be nonnegative.}
+\item{b3}{The rhs vector for \code{A3}, each component must be nonnegative.
+  If \code{A3} is \code{NULL} then \code{b3} must be \code{NULL}.}
+\item{eps}{A small positive number.  Each member of the solution must
+  be at least as large as \code{eps}.  Care must be taken not to choose a value
   of \code{eps} which is too large.}
 }
-\value{The function returns a vector. If the components of the vector
+\value{The function returns a vector.  If the components of the vector
   are positive then the feasible solution is the vector returned,
   otherwise there is no feasible solution.}
 \examples{

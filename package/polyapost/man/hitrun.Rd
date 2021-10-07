@@ -2,6 +2,7 @@
 \alias{hitrun}
 \alias{hitrun.default}
 \alias{hitrun.hitrun}
+\keyword{survey}
 \title{Hit and Run Algorithm for Constrained Dirichlet Distribution}
 \description{
     Markov chain Monte Carlo for equality and inequality constrained
@@ -24,10 +25,10 @@ hitrun(alpha, \dots)
   \item{nbatch}{the number of batches.}
   \item{blen}{the length of batches.}
   \item{nspac}{the spacing of iterations that contribute to batches.}
-  \item{a1}{a numeric or character matrix or \code{NULL}. See details.}
-  \item{b1}{a numeric or character vector or \code{NULL}. See details.}
-  \item{a2}{a numeric or character matrix or \code{NULL}. See details.}
-  \item{b2}{a numeric or character vector or \code{NULL}. See details.}
+  \item{a1}{a numeric or character matrix or \code{NULL}.  See details.}
+  \item{b1}{a numeric or character vector or \code{NULL}.  See details.}
+  \item{a2}{a numeric or character matrix or \code{NULL}.  See details.}
+  \item{b2}{a numeric or character vector or \code{NULL}.  See details.}
   \item{outmat}{a numeric matrix, which controls the output.  If \code{p}
       is the constrained Dirichlet random vector being simulated, then
       \code{outmat \%*\% p} is the functional of the state that is averaged.
@@ -167,6 +168,7 @@ produces a result as if the first run had been three times as long.
 Belisle, C. J. P., Romeijn, H. E. and Smith, R. L. (1993)
 Hit-and-run algorithms for generating multivariate distributions.
 \emph{Mathematics of Operations Research}, \bold{18}, 255--266.
+\doi{10.1287/moor.18.2.255}.
 
 Chen, M. H. and Schmeiser, B. (1993)
 Performance of the Gibbs, hit-and-run, and Metropolis samplers.
@@ -204,4 +206,3 @@ round(colMeans(out$batch), 3)
 # Monte Carlo standard errors
 round(apply(out$batch, 2, sd) / sqrt(out$nbatch), 3)
 }
-\keyword{misc}

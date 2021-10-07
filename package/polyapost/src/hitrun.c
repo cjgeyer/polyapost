@@ -1,3 +1,5 @@
+// See section 6.6.1 of Writing R Extensions (Fortran character strings)
+#define USE_FC_LEN_T
 
 #include <R.h>
 #include <Rinternals.h>
@@ -6,6 +8,10 @@
 #include <R_ext/Utils.h>
 #include <string.h>
 #include "polyapost.h"
+
+#ifndef FCONE
+# define FCONE
+#endif
 
 static void propose(double *x, double *proposal, double *a, double *b, int d,
     int n, double *z, double *smax_out, double *smin_out, double *u_out);
@@ -39,7 +45,7 @@ static double logh(double *state)
     // my_buffer := my_origin + my_basis * state
     memcpy(my_buffer, my_origin, my_dim_oc * sizeof(double));
     F77_CALL(dgemv)("n", &my_dim_oc, &my_dim_nc, &one,
-        my_basis, &my_dim_oc, state, &ione, &one, my_buffer, &ione);
+        my_basis, &my_dim_oc, state, &ione, &one, my_buffer, &ione FCONE);
 
     // return sum((alpha - 1) * my_buffer)
     double result = 0.0;
@@ -70,10 +76,10 @@ static void out_setup(double *origin, double *basis, double *outmat,
         double zero = 0.0;
         int ione = 1;
         F77_CALL(dgemm)("n", "n", &dim_out, &dim_nc, &dim_oc, &one, outmat,
-            &dim_out, basis, &dim_oc, &zero, my_out_mat, &dim_out);
+            &dim_out, basis, &dim_oc, &zero, my_out_mat, &dim_out FCONE FCONE);
         // my_out_vec := out_mat * origin
         F77_CALL(dgemv)("n", &dim_out, &dim_nc, &one, outmat, &dim_out,
-            origin, &ione, &zero, my_out_vec, &ione);
+            origin, &ione, &zero, my_out_vec, &ione FCONE);
     } else {
         my_out_mat = (double *) R_alloc(dim_oc * dim_nc, sizeof(double));
         my_out_vec = (double *) R_alloc(dim_oc, sizeof(double));
@@ -91,7 +97,7 @@ static void outfun(double *state, double *buffer)
     // buffer := my_out_vec + my_out_mat * state
     memcpy(buffer, my_out_vec, nrow_my_out_mat * sizeof(double));
     F77_CALL(dgemv)("n", &nrow_my_out_mat, &ncol_my_out_mat, &one,
-        my_out_mat, &nrow_my_out_mat, state, &ione, &one, buffer, &ione);
+        my_out_mat, &nrow_my_out_mat, state, &ione, &one, buffer, &ione FCONE);
 }
 
 static void check_finite(double *x, int length, char *name)
