@@ -4,9 +4,11 @@ Date: 2024-09-17
 Imports: boot, stats
 Depends: R (>= 3.6.2), rcdd (>= 1.2)
 Title: Simulating from the Polya Posterior
-Author: Glen Meeden <gmeeden@umn.edu> and Radu Lazar
-        <lazar@stat.umn.edu> and Charles J. Geyer <geyer@umn.edu>
-Maintainer: Glen Meeden <gmeeden@umn.edu>
+Authors@R: c(person(given = "Glen", family = "Meeden",
+    email = "gmeeden@umn.edu", role = c("aut", "cre")),
+    person(given = "Radu", family = "Lazar", email = "rlazar@umd.edu",
+    role = "aut"), person(given = c("Charles", "J."),
+    family = "Geyer", email = "geyer@umn.edu", role = "aut"))
 ByteCompile: TRUE
 Description: Simulate via Markov chain Monte Carlo (hit-and-run algorithm)
     a Dirichlet distribution conditioned to satisfy a finite set of linear
