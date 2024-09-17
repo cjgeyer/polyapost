@@ -56,7 +56,7 @@ and similarly for \code{a2} and \code{b2}.
 
 If any of \code{a1}, \code{b1}, \code{a2}, \code{b2} are of type
 \code{"character"}, then they must be valid GMP (GNU multiple precision)
-rational, that is, if run through \code{\link{q2q}}, they do not
+rational, that is, if run through \code{\link[rcdd]{q2q}}, they do not
 give an error.  This allows constraints to be represented exactly
 (using infinite precision rational arithmetic) if so desired.
 See also the section on this subject below.
@@ -90,8 +90,8 @@ a1 <- z2q(round(100 * a1), rep(100, length(a1)))
 }
 and similarly for \code{b1}, \code{a2}, and \code{b2} to make them exact.
 For all the conversion functions between ordinary computer numbers and
-GMP rational numbers see \link{ConvertGMP}.  For all the functions that
-do arithmetic on GMP rational numbers, see \link{ArithmeticGMP}.
+GMP rational numbers see \link[rcdd]{ConvertGMP}.  For all the functions that
+do arithmetic on GMP rational numbers, see \link[rcdd]{ArithmeticGMP}.
 }
 \section{Warning About Implied Equality Constraints}{
 If any constraints supplied as inequality constraints (specified by rows
@@ -180,7 +180,7 @@ In \emph{Handbook of Markov Chain Monte Carlo}. Edited by S. P. Brooks,
 A. E. Gelman, G. L. Jones, and X. L. Meng.
 Chapman & Hall/CRC, Boca Raton, FL, pp. 3--48.
 }
-\seealso{\code{\link{ConvertGMP}} and \code{\link{ArithmeticGMP}}}
+\seealso{\code{\link[rcdd]{ConvertGMP}} and \code{\link[rcdd]{ArithmeticGMP}}}
 \examples{
 # Bayesian inference for discrete probability distribution on {1, ..., d}
 # state is probability vector p of length d

@@ -1,7 +1,7 @@
 
-R version 3.4.0 (2017-04-21) -- "You Stupid Darkness"
-Copyright (C) 2017 The R Foundation for Statistical Computing
-Platform: x86_64-pc-linux-gnu (64-bit)
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -19,9 +19,8 @@ Type 'q()' to quit R.
 > library(polyapost)
 Loading required package: rcdd
 If you want correct answers, use rational arithmetic.
-See the Warnings sections added to help pages for
+See the Warnings sections in help pages for
     functions that do computational geometry.
-
 > 
 > set.seed(42)
 > 
@@ -261,4 +260,4 @@ See the Warnings sections added to help pages for
 > 
 > proc.time()
    user  system elapsed 
-  0.568   0.008   0.573 
+  0.517   0.030   0.534 

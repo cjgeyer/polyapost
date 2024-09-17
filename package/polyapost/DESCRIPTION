@@ -1,12 +1,12 @@
 Package: polyapost
-Version: 1.7
-Date: 2021-10-07
+Version: 1.7-1
+Date: 2024-09-17
 Imports: boot, stats
 Depends: R (>= 3.6.2), rcdd (>= 1.2)
 Title: Simulating from the Polya Posterior
-Author: Glen Meeden <glen@stat.umn.edu> and Radu Lazar
-        <lazar@stat.umn.edu> and Charles J. Geyer <charlie@stat.umn.edu>
-Maintainer: Glen Meeden <glen@stat.umn.edu>
+Author: Glen Meeden <gmeeden@umn.edu> and Radu Lazar
+        <lazar@stat.umn.edu> and Charles J. Geyer <geyer@umn.edu>
+Maintainer: Glen Meeden <gmeeden@umn.edu>
 ByteCompile: TRUE
 Description: Simulate via Markov chain Monte Carlo (hit-and-run algorithm)
     a Dirichlet distribution conditioned to satisfy a finite set of linear
